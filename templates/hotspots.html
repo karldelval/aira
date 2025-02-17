@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>   <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotspots Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+        #map {
+            height: 500px;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+    </style>
+</head>
+<body>{% include "chatbase.html" %}  {% include 'header2.html' %}
+    <header>
+        <h1 style="color: white;">Incident Hotspots Map</h1>
+    </header>
+    <main>
+        <div id="map"></div>
+
+        <table id="hotspotsTable">
+            <thead>
+                <tr>
+                    <th>Latitude</th>
+                    <th>Longitude</th>
+                    <th>Category</th>
+                    <th>Incident Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Rows will be dynamically added -->
+            </tbody>
+        </table>
+    </main>
+    <script>
+        // Parse hotspots data from Flask
+        const hotspots = JSON.parse('{{ hotspots | safe }}');
+
+        // Sort hotspots by count (descending)
+        hotspots.sort((a, b) => b.count - a.count);
+
+        // Initialize the map
+        const map = L.map('map').setView([14.5995, 120.9842], 13); // Example: Manila coordinates
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Add markers for hotspots
+        hotspots.forEach(hotspot => {
+            const marker = L.marker([hotspot.latitude, hotspot.longitude]).addTo(map);
+            marker.bindPopup(`
+                <b>Category:</b> ${hotspot.category}<br>
+                <b>Incident Count:</b> ${hotspot.count}
+            `);
+        });
+
+        // Populate the table
+        const tableBody = document.querySelector('#hotspotsTable tbody');
+        hotspots.forEach(hotspot => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${hotspot.latitude}</td>
+                <td>${hotspot.longitude}</td>
+                <td>${hotspot.category}</td>
+                <td>${hotspot.count}</td>
+            `;
+            tableBody.appendChild(row);
+        });
+    </script>
+</body>
+</html>

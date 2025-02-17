@@ -1,0 +1,102 @@
+<style>/* Style the dropdown container */
+    .dropdown {
+        position: relative;
+        display: inline-block;
+    }
+    
+   
+    .dropbtn {
+        background-color: #6c6f6c; 
+        color: white;
+        padding: 10px 20px;
+        font-size:15px;
+        border: none;
+        cursor: pointer;
+        width: 100%;
+    }
+    
+    /* Change color of dropdown button on hover */
+    .dropbtn:hover {
+        background-color: #747a74;
+    }
+    
+    /* Style the dropdown content (hidden by default) */
+    .dropdown-content {
+        display: none;
+        position: absolute;
+        background-color: #f9f9f9;
+        min-width: 160px;
+        box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.2);
+        z-index: 1;
+    }
+    
+    /* Links inside the dropdown */
+    .dropdown-content a {
+        color: black;
+        padding: 12px 16px;
+        text-decoration: none;
+        display: block;
+    }
+    
+    /* Change color of links on hover */
+    .dropdown-content a:hover {
+        background-color: #f1f1f1;
+    }
+    
+    /* Show the dropdown content when hovering over the dropdown */
+    .dropdown:hover .dropdown-content {
+        display: block;
+    }
+    
+    /* Style the dropdown when hovering over the button */
+    .dropdown:hover .dropbtn {
+        background-color: #9b979f;
+    }</style>
+
+<header class="header">
+    <div class="top-bar">
+        <div class="header-logo">
+            <img src="static/images/AIRA-1.png" alt="Logo">
+            <span class="header-title">AIRA Command Center</span>
+        </div>
+        <div class="hamburger" id="hamburger">
+            <div></div>
+            <div></div>
+            <div></div>
+        </div>
+    </div>
+    <nav class="menu-bar" id="menu-bar">
+        <a href="{{ url_for('home') }}">Home</a>
+       
+        <a href="/nearby_incidents">Nearby Incidents</a>
+        <a href="{{ url_for('view_announcements') }}">Announcements</a>
+       
+       
+        <a href="/answer_survey">Answer Survey</a>
+
+     
+            <!-- Dropdown Menu for the logged-in user -->
+            <div class="dropdown">
+                <button class="dropbtn">Services</button>
+                <div class="dropdown-content">
+                    <a href="/request_documents">Request Documents</a>
+                    <a href="/submit_feedback">Submit Feedback</a>
+                
+                </div>
+                </div>
+                <div class="dropdown">
+                <button class="dropbtn">Profile</button>
+                <div class="dropdown-content">
+                    <a href="/my_profile">My Profile</a>
+                    <a href="/view_messages">Inbox</a>
+                    <a href="/change_password">Change Password</a>
+                   
+                </div>
+            </div>
+            <a href="/login" id="login-link">Login</a>
+            <!-- Display login and register options if user is not logged in -->
+            
+           
+       
+    </nav>
+</header>

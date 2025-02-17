@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.1/dist/MarkerCluster.Default.css" />
+    <title>Citizen Data Dashboard</title>
+    <style>
+        #map {
+            height: 70vh;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        #filter-bar,
+        #search-bar {
+            margin: 20px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #filter-bar select,
+        #search-bar input {
+            padding: 5px;
+            width: 200px;
+        }
+
+        .pagination-button {
+            padding: 5px 10px;
+            margin: 0 5px;
+            cursor: pointer;
+        }
+
+        .update-btn {
+            padding: 5px 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        table {
+            width: 100%;
+            text-align: left;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 8px;
+            border: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        .legend {
+            padding: 6px 8px;
+            background: white;
+            background: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+            line-height: 24px;
+        }
+
+        .legend i {
+            width: 18px;
+            height: 18px;
+            float: left;
+            margin-right: 8px;
+            opacity: 0.7;
+        }
+    </style>
+    <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+{% include "chatbase.html" %}
+<body>
+    {% include 'header.html' %}
+    <h1 style="text-align: center;">Citizen Data Dashboard</h1>
+
+    <div id="filter-bar">
+        <label for="barangay-select">Select Barangay: </label>
+        <select id="barangay-select">
+            <option value="">-- All Barangays --</option>
+        </select>
+    </div>
+
+    <div id="search-bar">
+        <input type="text" id="search-name" placeholder="Search by name..." />
+        <input type="text" id="search-address" placeholder="Search by address..." />
+    </div>
+
+    <div id="map"></div>
+
+    <div id="citizen-records">
+        <h3>Citizen Records</h3>
+        <table id="citizen-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Address</th>
+                    <th>Barangay</th>
+                    <th>Latitude</th>
+                    <th>Longitude</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+        </table>
+        <div id="pagination"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.1/dist/leaflet.markercluster.js"></script>
+    <script>
+        // Initialize map centered on Pangasinan
+        const map = L.map('map').setView([15.8949, 120.2863], 10);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19
+        }).addTo(map);
+
+        // Initialize marker cluster group
+        const markers = L.markerClusterGroup();
+        map.addLayer(markers);
+
+        // Add legend
+        const legend = L.control({position: 'bottomright'});
+        legend.onAdd = function (map) {
+            const div = L.DomUtil.create('div', 'legend');
+            div.innerHTML = `
+                <i style="background: #f03; opacity: 0.2"></i> Geofence Boundary<br>
+                <i style="background: #3388ff"></i> Citizen Location<br>
+            `;
+            return div;
+        };
+        legend.addTo(map);
+
+        let currentPage = 1;
+        const recordsPerPage = 30; // Changed to match your backend limit
+        let geofencePolygons = new Map(); // Store geofence polygons
+
+        // Fetch and draw geofences
+        async function fetchGeofences() {
+            try {
+                const response = await fetch('/get_geofences_citizen');
+                const geofences = await response.json();
+                geofences.forEach(geofence => {
+                    if (geofence.boundaries) {
+                        const polygon = L.polygon(geofence.boundaries, {
+                            color: 'red',
+                            fillColor: '#f03',
+                            fillOpacity: 0.2,
+                            weight: 2
+                        });
+                        
+                        polygon.bindPopup(`
+                            <b>${geofence.name}</b><br>
+                            ${geofence.description}<br>
+                            Area: ${geofence.area ? geofence.area.toFixed(2) + ' sq m' : 'N/A'}
+                        `);
+                        
+                        polygon.addTo(map);
+                        geofencePolygons.set(geofence.name, polygon);
+                    }
+                });
+            } catch (error) {
+                console.error('Error fetching geofences:', error);
+            }
+        }
+
+        // Fetch barangays and populate dropdown
+        async function fetchBarangays() {
+            try {
+                const response = await fetch('/get_barangays');
+                const barangays = await response.json();
+                const barangaySelect = document.getElementById('barangay-select');
+                
+                barangays.forEach(barangay => {
+                    const option = document.createElement('option');
+                    option.value = barangay;
+                    option.textContent = barangay;
+                    barangaySelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error fetching barangays:', error);
+            }
+        }
+
+        // Fetch citizen data with lowercase field names
+        async function fetchCitizenData(barangay = '', name = '', address = '') {
+            const url = new URL('/get_citizens', window.location.origin);
+            const params = new URLSearchParams({
+                page: currentPage,
+                limit: recordsPerPage
+            });
+            
+            if (barangay) params.append('barangay', barangay);
+            if (name) params.append('name', name);
+            if (address) params.append('address', address);
+            
+            url.search = params.toString();
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                if (data.error) {
+                    console.error('Server error:', data.error);
+                    return;
+                }
+                updateTable(data.records);
+                updateMap(data.records);
+                updatePagination(data.totalRecords);
+            } catch (error) {
+                console.error('Error fetching citizen data:', error);
+            }
+        }
+
+        // Update map markers with lowercase field names
+        function updateMap(citizens) {
+            markers.clearLayers();
+            
+            citizens.forEach(citizen => {
+                if (citizen.longitude && citizen.latitude) {
+                    const marker = L.marker([citizen.latitude, citizen.longitude])
+                        .bindPopup(`
+                            <b>${citizen.name}</b><br>
+                            Address: ${citizen.address || 'N/A'}<br>
+                            Barangay: ${citizen.barangay || 'N/A'}
+                        `);
+                    markers.addLayer(marker);
+                }
+            });
+        }
+
+        // Update table with lowercase field names
+        function updateTable(citizens) {
+            const tableBody = document.getElementById('table-body');
+            tableBody.innerHTML = '';
+
+            citizens.forEach(citizen => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${citizen.name || ''}</td>
+                    <td>${citizen.address || ''}</td>
+                    <td>${citizen.barangay || ''}</td>
+                    <td>${citizen.latitude || ''}</td>
+                    <td>${citizen.longitude || ''}</td>
+                    <td>
+                        <button class="update-btn" onclick="updateCoordinates(${citizen.ID}, '${citizen.address || ''}')">
+                            Update Coordinates
+                        </button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        // Update pagination controls
+        function updatePagination(totalRecords) {
+            const totalPages = Math.ceil(totalRecords / recordsPerPage);
+            const paginationContainer = document.getElementById('pagination');
+            paginationContainer.innerHTML = '';
+
+            for (let i = 1; i <= totalPages; i++) {
+                const button = document.createElement('button');
+                button.textContent = i;
+                button.classList.add('pagination-button');
+                if (i === currentPage) button.classList.add('active');
+                button.addEventListener('click', () => {
+                    currentPage = i;
+                    fetchCitizenData(
+                        document.getElementById('barangay-select').value,
+                        document.getElementById('search-name').value,
+                        document.getElementById('search-address').value
+                    );
+                });
+                paginationContainer.appendChild(button);
+            }
+        }
+
+        // Event listeners
+        document.getElementById('barangay-select').addEventListener('change', (e) => {
+            currentPage = 1;
+            const selectedBarangay = e.target.value;
+            
+            // Highlight selected barangay geofence
+            geofencePolygons.forEach((polygon, name) => {
+                if (name === selectedBarangay) {
+                    polygon.setStyle({ fillOpacity: 0.4, weight: 3 });
+                    map.fitBounds(polygon.getBounds());
+                } else {
+                    polygon.setStyle({ fillOpacity: 0.2, weight: 2 });
+                }
+            });
+            
+            fetchCitizenData(selectedBarangay);
+        });
+
+        document.getElementById('search-name').addEventListener('input', (e) => {
+            currentPage = 1;
+            fetchCitizenData(
+                document.getElementById('barangay-select').value,
+                e.target.value,
+                document.getElementById('search-address').value
+            );
+        });
+
+        document.getElementById('search-address').addEventListener('input', (e) => {
+            currentPage = 1;
+            fetchCitizenData(
+                document.getElementById('barangay-select').value,
+                document.getElementById('search-name').value,
+                e.target.value
+            );
+        });
+
+        // Initialize the map
+        fetchGeofences();
+        fetchBarangays();
+        fetchCitizenData();
+    </script>
+</body>
+</html>

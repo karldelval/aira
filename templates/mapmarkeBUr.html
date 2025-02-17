@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marker Management Map</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        /* Enhanced search input and button styles */
+        #searchMarkers {
+            width: 300px;  /* Increased width */
+            height: 50px;  /* Taller input */
+            padding: 10px 15px;
+            font-size: 18px;
+            border: 2px solid #007bff;
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+    
+        #searchMarkers:focus {
+            border-color: #0056b3;
+            box-shadow: 0 0 8px rgba(0, 123, 255, 0.3);
+        }
+    
+        /* Search button styling */
+        button[onclick="searchMarkers()"] {
+            height: 50px;
+            padding: 0 20px;
+            font-size: 18px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            margin-left: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    
+        button[onclick="searchMarkers()"]:hover {
+            background-color: #0056b3;
+        }
+    
+        button[onclick="searchMarkers()"]:active {
+            transform: scale(0.98);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+    </style>
+    <style>
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+        }
+    
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 800px;
+            border-radius: 5px;
+        }
+    
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+    
+        .data-form {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+    
+        .data-form input,
+        .data-form select,
+        .data-form textarea {
+            margin: 5px;
+            padding: 8px;
+            width: 200px;
+        }
+    
+        .data-form textarea {
+            height: 100px;
+        }
+    </style>
+    <style>
+        #filterSection {
+            display: none;
+            transition: all 0.3s ease-in-out;
+        }
+    </style>
+    <style>
+        .category-columns {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+        .category-column {
+            flex: 1;
+            min-width: 180px;
+            margin-right: 10px;
+        }
+    </style>
+    <style>
+        #map { height: 60vh; width: 100%; }
+        #controls { margin: 10px; }
+        table {
+            width: 100%;
+            margin-top: 20px;
+            border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+        .btn {
+            padding: 5px 10px;
+            margin: 2px;
+            cursor: pointer;
+        }
+        .edit-btn {
+            background-color: yellow;
+        }
+        .delete-btn {
+            background-color: red;
+            color: white;
+        }
+        .category-filter {
+            margin-bottom: 20px;
+        }
+    </style>
+     <style>
+        #controls input[type="text"] {
+            width: 200px;
+            height: 40px;
+            padding: 10px;
+            border: 1px solid #cccccc;
+            border-radius: 5px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        #controls input[type="text"]:focus {
+            border-color: #007bff;
+        }
+
+        #controls button {
+            height: 45px;
+            padding: 0 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        #controls button:hover {
+            background-color: #0056b3;
+        }
+
+        #controls button:active {
+            transform: scale(0.98);
+        }
+    </style>
+    {% include "chatbase.html" %}
+</head>
+<body> {% include 'header.html' %}
+    <div id="container" style="margin-left: 20px;">
+    <h1>AIRA Marker Map Application</h1>
+    <p>Place markers, edit their details, and manage marker data.</p></div>
+    
+    <!-- Category Filter Section -->
+    <button id="toggleFilterButton">Filter Markers</button>
+    <div id="filterSection" class="category-filter" style="display: none;">
+        <h3>Filter by Category</h3>
+        <div class="category-columns">
+            <div class="category-column">
+                <label><input type="checkbox" id="flood" onclick="filterMarkers()"> Flood Prone Area</label><br>
+                <label><input type="checkbox" id="tax" onclick="filterMarkers()"> Tax Mapped Area</label><br>
+                <label><input type="checkbox" id="traffic" onclick="filterMarkers()"> Traffic</label><br>
+                <label><input type="checkbox" id="quarantine" onclick="filterMarkers()">Quarantined Area</label><br>
+                <label><input type="checkbox" id="construction" onclick="filterMarkers()"> Under Construction</label><br>
+                <label><input type="checkbox" id="commercial" onclick="filterMarkers()"> Commercial Building</label><br>
+                <label><input type="checkbox" id="residential" onclick="filterMarkers()"> Residential Building</label><br>
+                <label><input type="checkbox" id="shelter" onclick="filterMarkers()"> Shelter</label><br>
+                <label><input type="checkbox" id="store" onclick="filterMarkers()"> Sari-Sari Store</label><br>
+                <label><input type="checkbox" id="hospital" onclick="filterMarkers()"> Hospital</label><br>
+                <label><input type="checkbox" id="school" onclick="filterMarkers()"> School</label><br>
+                <label><input type="checkbox" id="fire" onclick="filterMarkers()"> Fire Station</label><br>
+                <label><input type="checkbox" id="police" onclick="filterMarkers()"> Police Station</label><br>
+            </div>
+            <div class="category-column">
+                <label><input type="checkbox" id="fireprone" onclick="filterMarkers()">Fire Prone Area</label><br>
+                <label><input type="checkbox" id="park" onclick="filterMarkers()"> Park</label><br>
+                <label><input type="checkbox" id="restaurant" onclick="filterMarkers()"> Restaurant</label><br>
+                <label><input type="checkbox" id="mall" onclick="filterMarkers()"> Shopping Mall</label><br>
+                <label><input type="checkbox" id="gym" onclick="filterMarkers()"> Gym</label><br>
+                <label><input type="checkbox" id="pharmacy" onclick="filterMarkers()"> Pharmacy</label><br>
+                <label><input type="checkbox" id="museum" onclick="filterMarkers()"> Museum</label><br>
+                <label><input type="checkbox" id="airport" onclick="filterMarkers()"> Airport</label><br>
+                <label><input type="checkbox" id="train" onclick="filterMarkers()"> Train Station</label><br>
+                <label><input type="checkbox" id="bus" onclick="filterMarkers()"> Bus Stop</label><br>
+                <label><input type="checkbox" id="library" onclick="filterMarkers()"> Library</label><br>
+            </div>
+            <div class="category-column">
+                <label><input type="checkbox" id="tower" onclick="filterMarkers()"> Tower</label><br>
+                <label><input type="checkbox" id="parking" onclick="filterMarkers()"> Parking Lot</label><br>
+                <label><input type="checkbox" id="atm" onclick="filterMarkers()"> ATM</label><br>
+                <label><input type="checkbox" id="grocery" onclick="filterMarkers()"> Grocery Store</label><br>
+                <label><input type="checkbox" id="supermarket" onclick="filterMarkers()"> Supermarket</label><br>
+                <label><input type="checkbox" id="bank" onclick="filterMarkers()"> Bank</label><br>
+                <label><input type="checkbox" id="university" onclick="filterMarkers()"> University</label><br>
+                <label><input type="checkbox" id="hotel" onclick="filterMarkers()"> Hotel</label><br>
+                <label><input type="checkbox" id="taxi" onclick="filterMarkers()"> Taxi Stand</label><br>
+                <label><input type="checkbox" id="clinic" onclick="filterMarkers()"> Clinic</label><br>
+                <label><input type="checkbox" id="bakery" onclick="filterMarkers()"> Bakery</label><br>
+            </div>
+            <div class="category-column">
+                <label><input type="checkbox" id="gas" onclick="filterMarkers()"> Gas Station</label><br>
+                <label><input type="checkbox" id="post" onclick="filterMarkers()"> Post Office</label><br>
+                <label><input type="checkbox" id="warehouse" onclick="filterMarkers()"> Warehouse</label><br>
+                <label><input type="checkbox" id="sports" onclick="filterMarkers()"> Sports Complex</label><br>
+                <label><input type="checkbox" id="zoo" onclick="filterMarkers()"> Zoo</label><br>
+                <label><input type="checkbox" id="beach" onclick="filterMarkers()"> Beach</label><br>
+                <label><input type="checkbox" id="river" onclick="filterMarkers()"> River</label><br>
+                <label><input type="checkbox" id="bridge" onclick="filterMarkers()"> Bridge</label><br>
+                <label><input type="checkbox" id="cemetery" onclick="filterMarkers()"> Cemetery</label><br>
+                <label><input type="checkbox" id="gov" onclick="filterMarkers()"> Government Office</label><br>
+            </div>
+            <div class="category-column">
+                <label><input type="checkbox" id="power" onclick="filterMarkers()"> Power Plant</label><br>
+                <label><input type="checkbox" id="wind" onclick="filterMarkers()"> Wind Farm</label><br>
+                <label><input type="checkbox" id="solar" onclick="filterMarkers()"> Solar Farm</label><br>
+                <label><input type="checkbox" id="forest" onclick="filterMarkers()"> Forest</label><br>
+                <label><input type="checkbox" id="nature" onclick="filterMarkers()"> Nature Reserve</label><br>
+                <label><input type="checkbox" id="waste" onclick="filterMarkers()"> Waste Disposal</label><br>
+                <label><input type="checkbox" id="recycling" onclick="filterMarkers()"> Recycling Center</label><br>
+                <label><input type="checkbox" id="cafe" onclick="filterMarkers()"> Café</label><br>
+                <label><input type="checkbox" id="nightclub" onclick="filterMarkers()"> Nightclub</label><br>
+                <label><input type="checkbox" id="theater" onclick="filterMarkers()"> Theater</label><br>
+            </div>
+        </div>
+    </div>
+    
+    <div id="controls">
+        <input type="text" id="markerLabel" placeholder="Marker Label">
+        <input type="text" id="markerDescription" placeholder="Marker Description">
+        <select id="markerCategory">
+            <option value="Flood Prone Area">Flood Prone Area</option>
+            <option value="Tax">Tax Mapped Area</option>
+            <option value="Traffic">Traffic</option>
+            <option value="Shelter">Shelter</option>
+            <option value="Fire Prone Area">Fire Prone Area</option>
+            <option value="Under Construction">Under Construction</option>
+            <option value="Commercial Building">Commercial Building</option>
+            <option value="Residential Building">Residential Building</option>
+            <option value="Tower">Tower</option>
+            <option value="Sari-Sari Store">Sari-Sari Store</option>
+            <option value="Quarantined Area">Quarantined Area</option>
+            <!-- 50 additional categories -->
+            <option value="Hospital">Hospital</option>
+            <option value="School">School</option>
+            <option value="Fire Station">Fire Station</option>
+            <option value="Police Station">Police Station</option>
+            <option value="Park">Park</option>
+            <option value="Restaurant">Restaurant</option>
+            <option value="Shopping Mall">Shopping Mall</option>
+            <option value="Gym">Gym</option>
+            <option value="Pharmacy">Pharmacy</option>
+            <option value="Museum">Museum</option>
+            <option value="Airport">Airport</option>
+            <option value="Train Station">Train Station</option>
+            <option value="Bus Stop">Bus Stop</option>
+            <option value="Library">Library</option>
+            <option value="Parking Lot">Parking Lot</option>
+            <option value="ATM">ATM</option>
+            <option value="Grocery Store">Grocery Store</option>
+            <option value="Supermarket">Supermarket</option>
+            <option value="Bank">Bank</option>
+            <option value="University">University</option>
+            <option value="Hotel">Hotel</option>
+            <option value="Taxi Stand">Taxi Stand</option>
+            <option value="Clinic">Clinic</option>
+            <option value="Bakery">Bakery</option>
+            <option value="Gas Station">Gas Station</option>
+            <option value="Post Office">Post Office</option>
+            <option value="Warehouse">Warehouse</option>
+            <option value="Construction Site">Construction Site</option>
+            <option value="Sports Complex">Sports Complex</option>
+            <option value="Zoo">Zoo</option>
+            <option value="Beach">Beach</option>
+            <option value="River">River</option>
+            <option value="Bridge">Bridge</option>
+            <option value="Cemetery">Cemetery</option>
+            <option value="Government Office">Government Office</option>
+            <option value="Power Plant">Power Plant</option>
+            <option value="Wind Farm">Wind Farm</option>
+            <option value="Solar Farm">Solar Farm</option>
+            <option value="Forest">Forest</option>
+            <option value="Nature Reserve">Nature Reserve</option>
+            <option value="Waste Disposal">Waste Disposal</option>
+            <option value="Recycling Center">Recycling Center</option>
+            <option value="Café">Café</option>
+            <option value="Nightclub">Nightclub</option>
+            <option value="Theater">Theater</option>
+            <option value="Concert Hall">Concert Hall</option>
+            <option value="Art Gallery">Art Gallery</option>
+            <option value="Botanical Garden">Botanical Garden</option>
+            <option value="Amusement Park">Amusement Park</option>
+            <option value="Ski Resort">Ski Resort</option>
+            <option value="Camping Site">Camping Site</option>
+            <option value="Wildlife Sanctuary">Wildlife Sanctuary</option>
+            <option value="Aquarium">Aquarium</option>
+            <option value="Fishing Spot">Fishing Spot</option>
+            <option value="Farm">Farm</option>
+            <option value="Vineyard">Vineyard</option>
+            <option value="Winery">Winery</option>
+        </select>
+        <button onclick="placeMarker()">Place Marker</button>
+        <button onclick="saveMarker()">Save Marker</button>
+        <button onclick="editMarker()">Edit Marker</button>
+        <button onclick="deleteMarker()">Delete Marker</button>
+
+        <input type="text" id="searchAddress" placeholder="Search by Address">
+        <input type="text" id="searchLat" placeholder="Latitude">
+        <input type="text" id="searchLon" placeholder="Longitude">
+        <button onclick="searchLocation()">Search</button>
+    </div>
+    <div id="map"></div>
+<br><input type="text" id="searchMarkers" placeholder="Search Markers">
+<button onclick="searchMarkers()">Search Markers</button>
+<!-- Table for marker data -->
+<h2>Marker Data</h2>
+<table id="markerTable">
+    <thead>
+        <tr>
+            <th>Label</th>
+            <th>Description</th>
+            <th>Category</th>
+            <th>Latitude</th>
+            <th>Longitude</th>
+            <th>Geotag-Address</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        <!-- Rows will be dynamically added here -->
+    </tbody>
+</table>
+<script>function searchMarkers() {
+    // Get the search keyword
+    const searchKeyword = document.getElementById('searchMarkers').value.toLowerCase().trim();
+
+    // If no keyword, show all markers
+    if (!searchKeyword) {
+        markers.forEach(marker => {
+            // Ensure the marker is on the map
+            if (!map.hasLayer(marker)) {
+                marker.addTo(map);
+            }
+        });
+        populateMarkerTable();
+        return;
+    }
+
+    // Filter markers based on search keyword
+    const filteredMarkers = markers.filter(marker => {
+        const label = (marker.options.label || '').toLowerCase();
+        const description = (marker.options.description || '').toLowerCase();
+        const category = (marker.options.category || '').toLowerCase();
+        const address = (marker.options.address || '').toLowerCase();
+
+        return (
+            label.includes(searchKeyword) ||
+            description.includes(searchKeyword) ||
+            category.includes(searchKeyword) ||
+            address.includes(searchKeyword)
+        );
+    });
+
+    // Remove all markers from the map
+    markers.forEach(marker => {
+        map.removeLayer(marker);
+    });
+
+    // Add filtered markers back to the map
+    filteredMarkers.forEach(marker => {
+        marker.addTo(map);
+    });
+
+    // Update the table with filtered markers
+    const tableBody = document.getElementById('markerTable').querySelector('tbody');
+    tableBody.innerHTML = '';
+
+    filteredMarkers.forEach(marker => {
+        const row = document.createElement('tr');
+        const label = marker.options.label || '';
+        const description = marker.options.description || '';
+        const category = marker.options.category || '';
+        const address = marker.options.address || '';
+        const { lat, lng } = marker.getLatLng();
+        const markerId = marker.options.id;
+
+        row.style.cursor = 'pointer';
+        
+        row.onclick = function(e) {
+            if (e.target.tagName !== 'BUTTON') {
+                // Deselect all rows first
+                tableBody.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
+                
+                // Select current row
+                row.classList.add('selected');
+                
+                // Set current marker ID
+                window.currentMarkerId = markerId;
+                
+                map.setView([lat, lng], 16);
+                marker.openPopup();
+            }
+        };
+
+        row.innerHTML = `
+            <td>${label}</td>
+            <td>${description}</td>
+            <td>${category}</td>
+            <td>${lat.toFixed(6)}</td>
+            <td>${lng.toFixed(6)}</td>
+            <td>${address}</td>
+            <td>
+                <button onclick="openMarkerData('${markerId}')" class="btn">Manage Data</button>
+            </td>
+        `;
+
+        tableBody.appendChild(row);
+    });
+
+    // Show number of results
+    alert(`Found ${filteredMarkers.length} matching markers`);
+}
+</script>
+
+
+<!-- Modal for Marker Data Management -->
+<div id="markerDataModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Manage Marker Data</h2>
+        
+        <!-- Form for adding new data -->
+        <div class="data-form">
+            <h3>Add New Data</h3>
+            <select id="dataCategory">
+                <option value="IoT">IoT Data</option>
+                <option value="Crop">Crop Data</option>
+                <option value="Weather">Weather Data</option>
+                <option value="Maintenance">Maintenance Data</option>
+                <option value="Other">Other</option>
+            </select>
+            <input type="text" id="dataValue" placeholder="Data Value">
+            <textarea id="dataNotes" placeholder="Notes"></textarea>
+            <input type="file" id="dataImage" accept="image/*">
+            <button onclick="saveMarkerData()" class="btn">Save Data</button>
+        </div>
+
+        <!-- Table for existing data -->
+        <div class="existing-data">
+            <h3>Existing Data</h3>
+            <table id="markerDataTable">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Data</th>
+                        <th>Notes</th>
+                        <th>Timestamp</th>
+                        <th>Image</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Data rows will be added here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize modal elements
+        window.currentMarkerId = null;
+        const modal = document.getElementById('markerDataModal');
+        const span = document.getElementsByClassName('close')[0];
+
+        // Modal close handlers
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        if (span) {
+            span.onclick = function() {
+                modal.style.display = "none";
+            }
+        }
+
+        // Initialize filter button
+        document.getElementById("toggleFilterButton").addEventListener("click", function () {
+            const filterSection = document.getElementById("filterSection");
+            if (filterSection.style.display === "none" || filterSection.style.display === "") {
+                filterSection.style.display = "block";
+            } else {
+                filterSection.style.display = "none";
+            }
+        });
+    });
+</script>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+
+<script>
+    const map = L.map('map').setView([14.5995, 120.9842], 13); // Default view (Manila)
+    let markers = [];
+    let currentMarker = null;
+
+    // Base layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+    }).addTo(map);
+
+    // Icons for categories
+    const categoryIcons = {
+        "Flood Prone Area": L.icon({ iconUrl: '/static/icons/flood.png', iconSize: [32, 32] }),
+        "Traffic": L.icon({ iconUrl: '/static/icons/traffic.png', iconSize: [32, 32] }),
+        "Quarantined Area": L.icon({ iconUrl: '/static/icons/quarantine.png', iconSize: [32, 32] }),
+        "Fire Prone Area": L.icon({ iconUrl: '/static/icons/fire.png', iconSize: [32, 32] }),
+        "Under Construction": L.icon({ iconUrl: '/static/icons/underconstruction.png', iconSize: [32, 32] }),
+        "Tower": L.icon({ iconUrl: '/static/icons/tower.png', iconSize: [32, 32] }),
+        "Residential Building": L.icon({ iconUrl: '/static/icons/residential.png', iconSize: [32, 32] }),
+        "Sari-Sari Store": L.icon({ iconUrl: '/static/icons/sari-sari.png', iconSize: [32, 32] }),
+        "default": L.icon({ iconUrl: '/static/icons/default.png', iconSize: [32, 32] })
+    };
+
+    // Load existing markers from the server
+    fetch('/get_markers')
+        .then(response => response.json())
+        .then(data => {
+            data.markers.forEach(marker => addMarkerToMap(marker));
+            populateMarkerTable();
+        });
+
+    // Add marker to map function
+    function addMarkerToMap(markerData) {
+    const marker = L.marker([markerData.latitude, markerData.longitude], {
+        title: markerData.label,
+        icon: categoryIcons[markerData.category] || categoryIcons["default"]
+    }).addTo(map);
+
+    // Store the marker ID and other data
+    marker.options.id = markerData.id;
+    marker.options.label = markerData.label;
+    marker.options.description = markerData.description;
+    marker.options.category = markerData.category;
+    marker.options.address = markerData.address;
+    
+    // Create popup but don't open it yet
+    const popup = L.popup();
+    marker.bindPopup(popup);
+
+    // Load marker data and update popup
+    fetch(`/get_marker_data/${markerData.id}`)
+        .then(response => response.json())
+        .then(data => {
+            let popupContent = `
+                <b>${markerData.label}</b>: ${markerData.description} (${markerData.category})
+                <hr>
+                <div style="max-height: 500px; overflow-y: auto;">
+                    <h4>Marker Data:</h4>
+            `;
+
+            if (data && data.length > 0) {
+                data.forEach(item => {
+                    popupContent += `
+                        <div style="margin-bottom: 10px; padding: 5px; border-bottom: 1px solid #eee;">
+                            <strong>${item.category}</strong><br>
+                            Value: ${item.data_value}<br>
+                            Notes: ${item.notes || 'N/A'}<br>
+                            Time: ${new Date(item.timestamp).toLocaleString()}<br>
+                            ${item.image_path ? `<img src="${item.image_path}" height="200">` : ''}
+                        </div>
+                    `;
+                });
+            } else {
+                popupContent += '<p>No data entries yet</p>';
+            }
+
+            popupContent += '</div>';
+            marker.setPopupContent(popupContent);
+        })
+        .catch(error => {
+            console.error('Error loading marker data for popup:', error);
+            marker.setPopupContent(`<b>${markerData.label}</b>: ${markerData.description} (${markerData.category})`);
+        });
+
+    markers.push(marker);
+    return marker;
+}
+
+    // Place marker function
+    function placeMarker() {
+        const label = document.getElementById('markerLabel').value;
+        const description = document.getElementById('markerDescription').value;
+        const category = document.getElementById('markerCategory').value;
+
+        if (!label || !description || !category) {
+            alert("Please provide a label, description, and category.");
+            return;
+        }
+
+        map.once('click', e => {
+            const { lat, lng } = e.latlng;
+            currentMarker = L.marker([lat, lng], { 
+                title: label, 
+                icon: categoryIcons[category] || categoryIcons["default"] 
+            }).addTo(map);
+
+            const popup = L.popup().setContent(`<b>${label}</b>: ${description} (${category})`);
+            currentMarker.bindPopup(popup);
+            popup.openPopup();
+
+            currentMarker.options.label = label;
+            currentMarker.options.description = description;
+            currentMarker.options.category = category;
+            markers.push(currentMarker);
+        });
+    }
+</script>
+<script>
+    // Save marker to the server
+   // Save marker to the server
+   function saveMarker() {
+    if (!currentMarker) {
+        alert("Please place a marker first.");
+        return;
+    }
+
+    const { label, description, category } = currentMarker.options;
+    const { lat, lng } = currentMarker.getLatLng();
+
+    // Add User-Agent and other recommended headers
+    const geocodingAPI = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`;
+    
+    fetch(geocodingAPI, {
+        headers: {
+            'User-Agent': 'YourAppName/1.0 (your-email@example.com)',
+            'Referer': window.location.origin
+        }
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(locationData => {
+            // Fallback if no address is found
+            const address = locationData.display_name || 'Address not found';
+
+            // Now save marker with address
+            return fetch('/add_marker', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    label, 
+                    description, 
+                    category, 
+                    latitude: lat, 
+                    longitude: lng,
+                    address: address
+                })
+            });
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.success || data.error);
+            fetchMarkers();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            
+            // Fallback to save marker without address
+            fetch('/add_marker', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    label, 
+                    description, 
+                    category, 
+                    latitude: lat, 
+                    longitude: lng,
+                    address: 'Address not available'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('Marker saved without address due to geocoding error');
+                fetchMarkers();
+            })
+            .catch(saveError => {
+                alert('Error saving marker: ' + saveError);
+            });
+        });
+}
+
+    // Fetch markers from the server
+    function fetchMarkers() {
+        fetch('/get_markers')
+            .then(response => response.json())
+            .then(data => {
+                markers.forEach(marker => marker.remove());
+                markers = [];
+                data.markers.forEach(marker => addMarkerToMap(marker));
+                populateMarkerTable();
+            });
+    }
+
+    // Filter markers function
+    function filterMarkers() {
+        const selectedCategories = [];
+        if (document.getElementById('flood').checked) selectedCategories.push("Flood Prone Area");
+        if (document.getElementById('traffic').checked) selectedCategories.push("Traffic");
+        if (document.getElementById('fireprone').checked) selectedCategories.push("Fire Prone Area");
+        if (document.getElementById('quarantine').checked) selectedCategories.push("Quarantined Area");
+        if (document.getElementById('tower').checked) selectedCategories.push("Tower");
+        if (document.getElementById('shelter').checked) selectedCategories.push("Shelter");
+
+        markers.forEach(marker => {
+            if (selectedCategories.includes(marker.options.category)) {
+                marker.addTo(map);
+            } else {
+                map.removeLayer(marker);
+            }
+        });
+    }
+
+    function populateMarkerTable() {
+    const tableBody = document.getElementById('markerTable').querySelector('tbody');
+    tableBody.innerHTML = '';
+
+    markers.forEach(marker => {
+        const row = document.createElement('tr');
+        const label = marker.options.label || '';
+        const description = marker.options.description || '';
+        const category = marker.options.category || '';
+        const address = marker.options.address || '';
+        const { lat, lng } = marker.getLatLng();
+        const markerId = marker.options.id;
+
+        row.style.cursor = 'pointer';
+        
+        row.onclick = function(e) {
+            if (e.target.tagName !== 'BUTTON') {
+                // Deselect all rows first
+                tableBody.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
+                
+                // Select current row
+                row.classList.add('selected');
+                
+                // Set current marker ID
+                window.currentMarkerId = markerId;
+                
+                map.setView([lat, lng], 16);
+                marker.openPopup();
+            }
+        };
+
+        row.innerHTML = `
+            <td>${label}</td>
+            <td>${description}</td>
+            <td>${category}</td>
+            <td>${lat.toFixed(6)}</td>
+            <td>${lng.toFixed(6)}</td>
+            <td>${address}</td>
+            <td>
+                <button onclick="openMarkerData('${markerId}')" class="btn">Manage Data</button>
+            </td>
+        `;
+
+        tableBody.appendChild(row);
+    });
+}
+
+// Add some CSS to highlight selected row
+const style = document.createElement('style');
+style.textContent = `
+    .selected {
+        background-color: #e0e0e0;
+    }
+`;
+document.head.appendChild(style);
+    // Marker data management functions
+    function openMarkerData(markerId) {
+        const modal = document.getElementById('markerDataModal');
+        if (!modal) {
+            console.error('Modal element not found');
+            return;
+        }
+        window.currentMarkerId = markerId;
+        loadMarkerData(markerId);
+        modal.style.display = 'block';
+    }
+
+    function loadMarkerData(markerId) {
+    if (!markerId) {
+        console.error('No marker ID provided');
+        return;
+    }
+
+    fetch(`/get_marker_data/${markerId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Update the data table
+            const tableBody = document.getElementById('markerDataTable').querySelector('tbody');
+            if (!tableBody) {
+                console.error('Marker data table not found');
+                return;
+            }
+            
+            tableBody.innerHTML = '';
+            
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.category || ''}</td>
+                    <td>${item.data_value || ''}</td>
+                    <td>${item.notes || ''}</td>
+                    <td>${item.timestamp ? new Date(item.timestamp).toLocaleString() : ''}</td>
+                    <td>${item.image_path ? `<img src="${item.image_path}" height="200">` : 'No image'}</td>
+                    <td>
+                        <button onclick="editMarkerData(${item.id})" class="btn">Edit</button>
+                        <button onclick="deleteMarkerData(${item.id})" class="btn">Delete</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+
+            // Update the marker popup
+            updateMarkerPopup(markerId, data);
+        })
+        .catch(error => {
+            console.error('Error loading marker data:', error);
+            alert('Error loading marker data. Please try again.');
+        });
+}
+function saveMarkerData() {
+    const formData = new FormData();
+    formData.append('marker_id', window.currentMarkerId);
+    formData.append('category', document.getElementById('dataCategory').value);
+    formData.append('data_value', document.getElementById('dataValue').value);
+    formData.append('notes', document.getElementById('dataNotes').value);
+    
+    const imageFile = document.getElementById('dataImage').files[0];
+    if (imageFile) {
+        formData.append('image', imageFile);
+    }
+
+    fetch('/add_marker_data', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            loadMarkerData(window.currentMarkerId);
+            document.getElementById('dataValue').value = '';
+            document.getElementById('dataNotes').value = '';
+            document.getElementById('dataImage').value = '';
+        } else {
+            alert('Error saving data: ' + data.error);
+        }
+    });
+}
+
+function deleteMarkerData(dataId) {
+    if (confirm('Are you sure you want to delete this data?')) {
+        fetch(`/delete_marker_data/${dataId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                loadMarkerData(window.currentMarkerId);
+            } else {
+                alert('Error deleting data: ' + data.error);
+            }
+        });
+    }
+}
+function editMarker() {
+    // Find the selected marker (if any)
+    const selectedMarker = markers.find(m => m.options.id === window.currentMarkerId);
+    
+    if (!selectedMarker) {
+        alert("Please select a marker to edit.");
+        return;
+    }
+
+    // Create a modal or form for editing
+    const editModal = document.createElement('div');
+    editModal.innerHTML = `
+        <div id="editMarkerModal" class="modal" style="display:block;">
+            <div class="modal-content">
+                <h2>Edit Marker</h2>
+                <label>Label:</label>
+                <input type="text" id="editLabelInput" value="${selectedMarker.options.label}">
+                <label>Description:</label>
+                <input type="text" id="editDescriptionInput" value="${selectedMarker.options.description}">
+                <label>Category:</label>
+                <select id="editCategoryInput">
+                    ${Array.from(document.getElementById('markerCategory').options)
+                        .map(option => 
+                            `<option value="${option.value}" ${option.value === selectedMarker.options.category ? 'selected' : ''}>${option.value}</option>`
+                        ).join('')
+                    }
+                </select>
+                <button onclick="saveEditedMarker()">Save Changes</button>
+                <button onclick="document.getElementById('editMarkerModal').remove()">Cancel</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(editModal);
+}
+
+function saveEditedMarker() {
+    const selectedMarker = markers.find(m => m.options.id === window.currentMarkerId);
+    
+    if (!selectedMarker) {
+        alert("No marker selected for editing.");
+        return;
+    }
+
+    const updatedMarker = {
+        label: document.getElementById('editLabelInput').value,
+        description: document.getElementById('editDescriptionInput').value,
+        category: document.getElementById('editCategoryInput').value
+    };
+
+    fetch(`/edit_marker/${selectedMarker.options.id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updatedMarker)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update marker options
+            selectedMarker.options.label = updatedMarker.label;
+            selectedMarker.options.description = updatedMarker.description;
+            selectedMarker.options.category = updatedMarker.category;
+
+            // Update marker icon if category changed
+            const newIcon = categoryIcons[updatedMarker.category] || categoryIcons["default"];
+            selectedMarker.setIcon(newIcon);
+
+            // Remove edit modal
+            const editModal = document.getElementById('editMarkerModal');
+            if (editModal) editModal.remove();
+
+            // Refresh markers table
+            populateMarkerTable();
+
+            alert('Marker updated successfully');
+        } else {
+            alert(data.error || 'Failed to update marker');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating marker');
+    });
+}
+
+function deleteMarker() {
+    const selectedMarker = markers.find(m => m.options.id === window.currentMarkerId);
+    
+    if (!selectedMarker) {
+        alert("Please select a marker to delete.");
+        return;
+    }
+
+    if (confirm('Are you sure you want to delete this marker?')) {
+        fetch(`/delete_marker/${selectedMarker.options.id}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove marker from map and markers array
+                map.removeLayer(selectedMarker);
+                markers = markers.filter(m => m !== selectedMarker);
+                
+                // Refresh marker table
+                populateMarkerTable();
+
+                alert('Marker deleted successfully');
+            } else {
+                alert('Failed to delete marker');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting marker');
+        });
+    }
+}
+    // Search location function
+    function searchLocation() {
+        const address = document.getElementById('searchAddress').value;
+        const lat = parseFloat(document.getElementById('searchLat').value);
+        const lon = parseFloat(document.getElementById('searchLon').value);
+
+        if (address) {
+            const geocodingAPI = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;
+            fetch(geocodingAPI)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length > 0) {
+                        const { lat, lon } = data[0];
+                        map.setView([lat, lon], 15);
+                        L.marker([lat, lon]).addTo(map)
+                            .bindPopup(`Address: ${data[0].display_name}`)
+                            .openPopup();
+                    } else {
+                        alert("Address not found.");
+                    }
+                })
+                .catch(() => alert("Error in geocoding address."));
+        } else if (!isNaN(lat) && !isNaN(lon)) {
+            map.setView([lat, lon], 15);
+        } else {
+            alert("Please provide a valid address or coordinates.");
+        }
+    }
+</script>
+<script>function updateMarkerPopup(markerId, data) {
+    const marker = markers.find(m => m.options.id === markerId);
+    if (marker) {
+        let popupContent = `
+            <b>${marker.options.label}</b>: ${marker.options.description} (${marker.options.category})
+            <hr>
+            <div style="max-height: 200px; overflow-y: auto;">
+                <h4>Marker Data:</h4>
+        `;
+
+        if (data && data.length > 0) {
+            data.forEach(item => {
+                popupContent += `
+                    <div style="margin-bottom: 10px; padding: 5px; border-bottom: 1px solid #eee;">
+                        <strong>${item.category}</strong><br>
+                        Value: ${item.data_value}<br>
+                        Notes: ${item.notes || 'N/A'}<br>
+                        Time: ${new Date(item.timestamp).toLocaleString()}<br>
+                        ${item.image_path ? `<img src="${item.image_path}" height="150">` : ''}
+                    </div>
+                `;
+            });
+        } else {
+            popupContent += '<p>No data entries yet</p>';
+        }
+
+        popupContent += '</div>';
+        marker.setPopupContent(popupContent);
+    }
+}</script>
+
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensor Data</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0-alpha1/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h2>Sensor Data</h2>
+
+        <!-- Table to display the sensor data -->
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Sensor ID</th>
+                    <th>Sensor Type</th>
+                    <th>Value</th>
+                    <th>Timestamp</th>
+                    <th>Notes</th>
+                    <th>Longitude</th>
+                    <th>Latitude</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sensor in sensor_data %}
+                    <tr>
+                        <td>{{ sensor.sensor_id }}</td>
+                        <td>{{ sensor.sensor_type }}</td>
+                        <td>{{ sensor.value }}</td>
+                        <td>{{ sensor.timestamp }}</td>
+                        <td>{{ sensor.notes }}</td>
+                        <td>{{ sensor.longitude }}</td>
+                        <td>{{ sensor.latitude }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Optional Bootstrap JS (for table features) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0-alpha1/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

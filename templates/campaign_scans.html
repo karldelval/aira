@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campaign Scans Viewer</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+
+        .page-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+        }
+
+        .filters-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        #map {
+            height: 400px;
+            background-color: #e9ecef;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .scans-list {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .scan-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .scan-item:last-child {
+            border-bottom: none;
+        }
+
+        .scan-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .scan-name {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .scan-time {
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+
+        .scan-details {
+            color: #2c3e50;
+            font-size: 0.9em;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+        }
+
+        .stats-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        .stat-label {
+            color: #6c757d;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .pagination button {
+            padding: 5px 10px;
+        }
+
+        .pagination button.active {
+            background-color: #0056b3;
+        }
+
+        .pagination button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body> {% include 'header.html' %}
+    <div class="page-container">
+        <div class="filters-container">
+            <h2>Filters</h2>
+            <form id="filterForm">
+                <div class="form-group">
+                    <label for="campaignSelect">Campaign</label>
+                    <select id="campaignSelect" required>
+                        <option value="">Select Campaign</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="dateStart">Date Range</label>
+                    <input type="date" id="dateStart" name="dateStart">
+                    <input type="date" id="dateEnd" name="dateEnd">
+                </div>
+                <div class="form-group">
+                    <label for="barangaySelect">Barangay</label>
+                    <select id="barangaySelect">
+                        <option value="">All Barangays</option>
+                    </select>
+                </div>
+                <button type="submit">Apply Filters</button>
+                <button type="button" onclick="resetFilters()">Reset</button>
+            </form>
+        </div>
+
+        <div class="main-content">
+            <div class="stats-container">
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalScans">0</div>
+                        <div class="stat-label">Total Scans</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="uniqueCitizens">0</div>
+                        <div class="stat-label">Unique Citizens</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="todayScans">0</div>
+                        <div class="stat-label">Today's Scans</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="map"></div>
+
+            <div class="scans-list">
+                <h2>Scan Records</h2>
+                <div id="scansList"></div>
+                <div class="pagination" id="pagination"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let map;
+        let markers = [];
+        const itemsPerPage = 10;
+        let currentPage = 1;
+        let totalPages = 1;
+        let currentMarkers = [];
+
+        // Initialize map
+        function initMap() {
+            map = L.map('map').setView([15.4827, 120.7120], 12); // Set to San Fernando, Pampanga coordinates
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+        }
+
+        // Load campaigns
+        async function loadCampaigns() {
+            try {
+                const response = await fetch('/get_campaigns');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const select = document.getElementById('campaignSelect');
+                    select.innerHTML = '<option value="">Select Campaign</option>';
+                    data.campaigns.forEach(campaign => {
+                        select.innerHTML += `<option value="${campaign.id}">${campaign.name}</option>`;
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading campaigns:', error);
+            }
+        }
+
+        // Load and display scans
+        async function loadScans() {
+            const campaign_id = document.getElementById('campaignSelect').value;
+            if (!campaign_id) return;
+
+            const dateStart = document.getElementById('dateStart').value;
+            const dateEnd = document.getElementById('dateEnd').value;
+            const barangay = document.getElementById('barangaySelect').value;
+
+            try {
+                const response = await fetch(`/get_campaign_scans?campaign_id=${campaign_id}&date_start=${dateStart}&date_end=${dateEnd}&barangay=${barangay}&page=${currentPage}&per_page=${itemsPerPage}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayScans(data.scans);
+                    updateMap(data.scans);
+                    updateStats(data.stats);
+                    updatePagination(data.total_pages);
+                }
+            } catch (error) {
+                console.error('Error loading scans:', error);
+            }
+        }
+
+        function displayScans(scans) {
+            const scansList = document.getElementById('scansList');
+            
+            if (scans.length === 0) {
+                scansList.innerHTML = '<div class="no-results">No scans found</div>';
+                return;
+            }
+
+            scansList.innerHTML = scans.map(scan => `
+                <div class="scan-item">
+                    <div class="scan-header">
+                        <span class="scan-name">${scan.citizen_name}</span>
+                        <span class="scan-time">${new Date(scan.scanned_at).toLocaleString()}</span>
+                    </div>
+                    <div class="scan-details">
+                        <p><strong>Barangay:</strong> ${scan.barangay}</p>
+                        <p><strong>Location:</strong> ${scan.latitude}, ${scan.longitude}</p>
+                        <p><strong>Notes:</strong> ${scan.notes || 'No notes'}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateMap(scans) {
+            // Clear existing markers
+            currentMarkers.forEach(marker => map.removeLayer(marker));
+            currentMarkers = [];
+
+            // Add new markers
+            scans.forEach(scan => {
+                const marker = L.marker([scan.latitude, scan.longitude])
+                    .bindPopup(`
+                        <b>${scan.citizen_name}</b><br>
+                        Scanned: ${new Date(scan.scanned_at).toLocaleString()}<br>
+                        Barangay: ${scan.barangay}
+                    `);
+                marker.addTo(map);
+                currentMarkers.push(marker);
+            });
+
+            // Adjust map view to fit all markers if there are any
+            if (currentMarkers.length > 0) {
+                const group = new L.featureGroup(currentMarkers);
+                map.fitBounds(group.getBounds().pad(0.1));
+            }
+        }
+
+        function updateStats(stats) {
+            document.getElementById('totalScans').textContent = stats.total_scans;
+            document.getElementById('uniqueCitizens').textContent = stats.unique_citizens;
+            document.getElementById('todayScans').textContent = stats.today_scans;
+        }
+
+        function updatePagination(total) {
+            totalPages = total;
+            const pagination = document.getElementById('pagination');
+            
+            let html = `
+                <button onclick="changePage(1)" ${currentPage === 1 ? 'disabled' : ''}>First</button>
+                <button onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>Previous</button>
+            `;
+
+            for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+                html += `<button onclick="changePage(${i})" class="${i === currentPage ? 'active' : ''}">${i}</button>`;
+            }
+
+            html += `
+                <button onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>
+                <button onclick="changePage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>Last</button>
+            `;
+
+            pagination.innerHTML = html;
+        }
+
+        function changePage(page) {
+            currentPage = page;
+            loadScans();
+        }
+
+        function resetFilters() {
+            document.getElementById('filterForm').reset();
+            currentPage = 1;
+            loadScans();
+        }
+
+        // Event listeners
+        document.getElementById('filterForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            currentPage = 1;
+            loadScans();
+        });
+
+        document.getElementById('campaignSelect').addEventListener('change', function() {
+            currentPage = 1;
+            loadScans();
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            initMap();
+            loadCampaigns();
+        });
+    </script>
+</body>
+</html>

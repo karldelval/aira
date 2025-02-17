@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <title>Incident Dispatch Calendar</title>
+    
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.8/index.min.css" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Lighten the day header background */
+.fc-theme-standard th {
+    background-color: #f0f8ff !important; /* Light blue color */
+    color: #333; /* Darker text for contrast */
+    font-weight: bold;
+    border: 1px solid #ddd; /* Subtle borders */
+}
+
+        input[type="text"] {
+            font-size: 24px;
+            padding: 12px;
+            width: 100%;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+        }
+        .formfont {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            font-size: 18px;
+        }
+
+        select {
+            font-size: 24px;
+            padding: 12px;
+            width: 100%;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+        }
+
+        /* Style for the calendar header (days) */
+.fc .fc-col-header-cell {
+    background-color: #f1f1f1;  /* Lighter background for header */
+    font-weight: normal;  /* Lighter font weight */
+}
+
+/* Marking the calendar dates that have assignments */
+.fc-day.assigned {
+    background-color: #ffeb3b;  /* Light yellow background for dates with assignments */
+    border-radius: 50%;  /* Circular marking */
+}
+/* Style for the username marker */
+.username-marker {
+    font-size: 12px;
+    color: #333;
+    background-color: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-left: 10px;
+    display: inline-block;
+}
+
+.fc-username {
+    font-size: 10px;
+    color: #888;
+    margin-top: 5px;
+}
+/* Optional: Hover effect for assigned days */
+.fc-day.assigned:hover {
+    background-color: #ffeb3b;
+    opacity: 0.7;  /* Slight hover effect */
+}
+
+        #calendar {
+            max-width: 1100px;
+            margin: 50px auto;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            padding-top: 60px;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            font-size: 28px;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 70%;
+            font-size: 28px;
+            border-radius: 10px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .assignment-item {
+            padding: 10px;
+            margin: 5px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .remove-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: red;
+        }
+        .remove-btn:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    {% include "chatbase.html" %}  
+    {% include 'header.html' %}
+    <h1 style="text-align: center;">Incident Dispatch Calendar</h1>
+    <div id="calendar"></div>
+
+    <!-- Modal for assigning personnel -->
+    <div id="assignModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Assign Personnel</h3>
+            <form id="assignForm" class="formfont">
+                <h3>Assign Personnel to Incident</h3>
+                <label for="incident">Incident:</label>
+                <input type="text" id="incident" placeholder="Search for an incident" required>
+                <input type="hidden" id="incidentId"> 
+               <b>Choose and click an incident below:</b> 
+                <ul id="autocomplete-list" class="autocomplete-list"></ul><br><br>
+
+                <label for="personnel">Personnel:</label>
+                <select id="personnel" required>
+                    <option value="">Select Personnel</option>
+                </select><br><br>
+
+                <button type="submit" class="btn">Assign</button>
+            </form>
+
+            <h1>Existing Assignments</h1>
+            <div id="assignments-list" style="font-size: 18px;">
+                <!-- Existing assignments will be dynamically inserted here -->
+            </div>
+        </div>
+    </div>
+<!-- Include FullCalendar 5.x -->
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.8/index.global.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const calendarEl = document.getElementById('calendar');
+            const modal = document.getElementById('assignModal');
+            const closeBtn = document.querySelector('.close');
+            const form = document.getElementById('assignForm');
+            let selectedDate = null; // Initialize the selectedDate variable
+            
+            // Initialize the calendar
+            let calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                selectable: true,
+                select: function (info) {
+                    selectedDate = info.startStr; 
+                // Save the selected date in YYYY-MM-DD format
+                    const selectedDateWithTime = selectedDate + " 00:00:00"; // Append time
+                    modal.style.display = 'block';
+            
+                    // Fetch assignments for the selected date
+                    fetch(`/fetch_assignments?date=${selectedDate}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            const assignmentsList = document.getElementById('assignments-list');
+                            assignmentsList.innerHTML = ''; // Clear previous assignments
+            
+                            // Check if data is valid and contains assignments
+                            if (Array.isArray(data) && data.length > 0) {
+                                data.forEach(assignment => {
+                                    console.log('Fetched assignment:', assignment); // Debugging
+            
+                                    // Create the assignment div
+                                    const assignmentDiv = document.createElement('div');
+                                    assignmentDiv.classList.add('assignment-item');
+                                    assignmentDiv.innerHTML = `
+                                        <div>
+                                            <p class="incident">Incident: ${assignment.incident}</p>
+                                            <p><strong>Personnel:</strong> ${assignment.personnel}</p>
+                                        </div>
+                                        <button class="remove-btn" data-assignment-id="${assignment.id}">Remove</button>
+                                    `;
+                                    assignmentsList.appendChild(assignmentDiv);
+                                });
+            
+                                // Add event listeners to "Remove" buttons
+                                document.querySelectorAll('.remove-btn').forEach(button => {
+                                    button.addEventListener('click', function () {
+                                        const assignmentId = this.dataset.assignmentId; // Fetch the ID
+                                        console.log('Assignment ID to remove:', assignmentId); // Debugging
+            
+                                        if (assignmentId) {
+                                            fetch(`/remove_assignment/${assignmentId}`, {
+                                                method: 'DELETE'
+                                            })
+                                                .then(response => {
+                                                    if (!response.ok) {
+                                                        throw new Error('Failed to remove assignment.');
+                                                    }
+                                                    return response.json();
+                                                })
+                                                .then(data => {
+                                                    alert(data.message || 'Assignment removed successfully!');
+                                                    this.parentElement.remove(); // Remove the assignment from the UI
+                                                })
+                                                .catch(error => {
+                                                    console.error('Error removing assignment:', error);
+                                                    alert('Error removing assignment. Please try again.');
+                                                });
+                                        } else {
+                                            console.error('Assignment ID is undefined.');
+                                            alert('Error: Assignment ID is missing.');
+                                        }
+                                    });
+                                });
+                            } else {
+                                assignmentsList.innerHTML = '<p>No assignments found for this date.</p>';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error fetching assignments:', error);
+                            document.getElementById('assignments-list').innerHTML = '<p>Error loading assignments.</p>';
+                        });
+                },
+                events: '/cal_incidents', // Fetch incidents from the server
+                eventClick: function (info) {
+                    const assignment = info.event.extendedProps.assignment;
+                    alert(`Assignment Details:\nIncident: ${assignment.incident}\nPersonnel: ${assignment.personnel}`);
+                }
+            });
+        
+            calendar.render();
+        
+            // Close Modal
+            closeBtn.onclick = () => modal.style.display = 'none';
+            window.onclick = (e) => {
+                if (e.target == modal) modal.style.display = 'none';
+            };
+        
+            // Fetch all incidents for autocomplete
+            fetch('/fetch_all_incidents')
+                .then(res => res.json())
+                .then(data => {
+                    const incidentInput = document.getElementById('incident');
+                    incidentInput.addEventListener('input', function () {
+                        const query = incidentInput.value.toLowerCase();
+                        const filteredIncidents = data.filter(i => i.title.toLowerCase().includes(query));
+                        showAutocomplete(filteredIncidents);
+                    });
+        
+                    function showAutocomplete(filteredIncidents) {
+                        const autocompleteList = document.getElementById('autocomplete-list');
+                        autocompleteList.innerHTML = '';
+                        filteredIncidents.forEach(incident => {
+                            const li = document.createElement('li');
+                            li.textContent = incident.title;
+                            li.dataset.id = incident.id;
+                            li.addEventListener('click', () => {
+                                incidentInput.value = incident.title;
+                                document.getElementById('incidentId').value = incident.id;
+                                autocompleteList.innerHTML = '';
+                            });
+                            autocompleteList.appendChild(li);
+                        });
+                    }
+                });
+        
+            // Fetch personnel for assignment
+            fetch('/personnel?role=REPORTER')
+                .then(res => res.json())
+                .then(data => {
+                    const personnelSelect = document.getElementById('personnel');
+                    data.forEach(p => {
+                        const option = document.createElement('option');
+                        option.value = p.user_id;
+                        option.textContent = p.name;
+                        personnelSelect.appendChild(option);
+                    });
+                });
+        
+            // Submit form
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const incidentId = document.getElementById('incidentId').value;
+                const personnelId = document.getElementById('personnel').value;
+            
+                // Pass the selected date to the backend along with the other data
+                fetch('/assign', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        incident_id: incidentId, 
+                        personnel_id: personnelId,
+                        date: selectedDate + ' 00:00:00'// Pass the selected date
+                    })
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        alert(data.message || 'Personnel assigned successfully!');
+                        modal.style.display = 'none';
+                        calendar.refetchEvents();  // Refresh the calendar events
+                    })
+                    .catch(error => {
+                        console.error('Error assigning personnel:', error);
+                        alert('Error assigning personnel. Please try again.');
+                    });
+            });
+        });
+    </script>
+</body>
+</html>

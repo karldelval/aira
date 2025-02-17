@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Users</title>
+    <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            background-color: #f8f9fa;
+        }
+    
+        .container {
+            margin-top: 30px;
+            padding-left: 0;
+            padding-right: 0;
+            width: 100%; /* Ensure the container spans the full width */
+        }
+    
+        .page-title {
+            margin-bottom: 30px;
+            font-size: 2rem;
+            text-align: center;
+        }
+    
+        /* Form Styling */
+        .form-control, .select2 {
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 1rem;
+            width: 100%; /* Ensure the form elements fill their container */
+        }
+
+    
+        .input-group .form-control {
+            border-radius: 8px;
+            padding: 12px;
+        }
+    
+        .action-buttons button {
+            margin-right: 10px;
+        }
+    
+        .modal-footer .btn {
+            margin: 0 5px;
+        }
+    
+        .search-bar .input-group {
+            margin-bottom: 20px;
+        }
+    
+        /* Table Styling */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 40px;
+        }
+    
+        table th, table td {
+            padding: 15px;
+            border: 1px solid #ddd;
+            text-align: center;
+            vertical-align: middle;
+        }
+    
+        table th {
+            background-color: #424548;
+            color: white;
+        }
+    
+        table td {
+            background-color: #fff;
+            color: #333;
+        }
+    
+        .user-photo {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+        }
+    
+        .badge-active {
+            background-color: #28a745;
+            color: white;
+        }
+    
+        .badge-inactive {
+            background-color: #6c757d;
+            color: white;
+        }
+    
+        .select2 {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            font-size: 1rem;
+        }
+    
+        .form-group {
+            margin-bottom: 20px;
+        }
+    
+        .form-row {
+            margin-bottom: 20px;
+            width: 100%; /* Ensure the form rows take full width */
+        }
+    
+        .chat-box {
+    position: fixed;
+    top: 50%; /* Position it vertically in the center */
+    left: 50%; /* Position it horizontally in the center */
+    transform: translate(-50%, -50%); /* Adjust the positioning to perfectly center the box */
+    width: 300px;
+    max-height: 400px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    overflow: hidden;
+    display: none;
+    flex-direction: column;
+}
+    
+   /* Chatbox container, centered in the middle */
+.chat-box {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 400px;  /* Make the container bigger */
+    max-height: 600px;  /* Set a maximum height */
+    background: #fff;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);  /* Soft shadow */
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 1000;  /* Ensure it's above other elements */
+    font-family: Arial, sans-serif;
+}
+
+/* Chat header */
+.chat-header {
+    background: #513e5f;
+    color: white;
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #eee;  /* Add a bottom border */
+    font-size: 18px;
+}
+
+/* Chat messages container */
+.chat-messages {
+    flex: 1;
+    padding: 15px;
+    overflow-y: auto;
+    background-color: #f9f9f9;  /* Slightly different background */
+}
+
+/* Chat message styling */
+.chat-message {
+    margin-bottom: 15px;
+    padding: 12px;
+    border-radius: 12px;
+    max-width: 80%;
+    word-wrap: break-word;
+    font-size: 14px;
+}
+
+/* User message styling */
+.chat-message.user {
+    background-color: #513e5f;
+    color: white;
+    align-self: flex-end;
+    border-radius: 12px 12px 0 12px;  /* Slightly adjusted rounded corners */
+}
+
+/* Bot message styling */
+.chat-message.bot {
+    background-color: #f1f1f1;
+    color: #333;
+    align-self: flex-start;
+    border-radius: 12px 12px 12px 0;  /* Slightly adjusted rounded corners */
+}
+
+/* Chat input area */
+.chat-input {
+    display: flex;
+    padding: 10px;
+    border-top: 1px solid #ccc;
+    background-color: #f9f9f9;  /* Same background color as chat messages */
+}
+
+/* Textarea in the chat input */
+.chat-input textarea {
+    flex: 1;
+    resize: none;  /* Remove resize for a cleaner look */
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+/* Textarea focus state */
+.chat-input textarea:focus {
+    border-color: #513e5f;
+}
+
+/* Send button styling */
+.chat-input button {
+    margin-left: 10px;
+    padding: 12px 25px;
+    background: #513e5f;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+/* Send button hover effect */
+.chat-input button:hover {
+    background-color: #402e45;
+}
+
+/* Close button (X) styling */
+#closeChat {
+    font-size: 20px;
+    color: white;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+}
+
+/* Close button hover effect */
+#closeChat:hover {
+    color: #ddd;
+}
+    </style> {% include "chatbase.html" %}
+</head>
+<body>
+    {% include 'header.html' %}
+
+    <div class="container">
+        <h1 class="page-title">Manage Users</h1>
+
+        <!-- Add User Form -->
+        <form method="POST" action="/add_user" class="form">
+            <div class="form-row">
+                <div class="col-md-4">
+                    <input type="text" name="first_name" class="form-control" placeholder="First Name" required>
+                </div>
+                <div class="col-md-4">
+                    <input type="text" name="last_name" class="form-control" placeholder="Last Name" required>
+                </div>
+                <div class="col-md-4">
+                    <input type="email" name="email" class="form-control" placeholder="Email" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="col-md-4">
+                    <input type="text" name="mobile" class="form-control" placeholder="Mobile" required>
+                </div>
+                <div class="col-md-4">
+                    <input type="text" name="username" class="form-control" placeholder="Username" required>
+                </div>
+                <div class="col-md-4">
+                    <input type="password" name="password" class="form-control" placeholder="Password" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="col-md-4">
+                    <select name="role" class="select2" required>
+                        <option value="ADMIN">ADMIN</option>
+                        <option value="REPORTER">REPORTER</option>
+                        <option value="CITIZEN">CITIZEN</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary btn-block">Add User</button>
+                </div>
+            </div>
+        </form>
+
+        <!-- Search Bar -->
+        <form method="GET" action="/users" class="search-bar">
+            <div class="input-group">
+                <input type="text" name="search" class="form-control" placeholder="Search users..." value="{{ search_query }}">
+                <div class="input-group-append">
+                    <button type="submit" class="btn btn-primary">Search</button>
+                </div>
+            </div>
+        </form>
+
+        <!-- User Table -->
+        <table class="container">
+            <thead>
+                <tr>
+                    <th>Photo</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Mobile</th>
+                    <th>Username</th>
+                    <th>Status</th>
+                    <th>Role</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td><img src="{{ user.photo_url }}" alt="User Photo" class="user-photo"></td>
+                    <td>{{ user.first_name }} {{ user.last_name }}</td>
+                    <td>{{ user.email }}</td>
+                    <td>{{ user.mobile }}</td>
+                    <td>{{ user.username }}</td>
+                    <td>
+                        <span class="badge badge-{{ 'active' if user.access == 'active' else 'inactive' }}">
+                            {{ user.access.capitalize() if user.access else 'Unknown' }}
+                        </span>
+                    </td>
+                    <td>
+                        <form method="POST" action="/update_role/{{ user.user_id }}" >
+                            <select name="role" class="" onchange="this.form.submit()">
+                                <option value="ADMIN" {% if user.role == 'ADMIN' %} selected {% endif %}>ADMIN</option>
+                                <option value="REPORTER" {% if user.role == 'REPORTER' %} selected {% endif %}>REPORTER</option>
+                                <option value="CITIZEN" {% if user.role == 'CITIZEN' %} selected {% endif %}>CITIZEN</option>
+                            </select>
+                        </form>
+                    </td>
+                    <td class="action-buttons">
+                        <form action="/toggle_user/{{ user.user_id }}" method="POST" style="display: inline;">
+                            <button type="submit" class="btn btn-sm btn-warning">
+                                {{ 'Deactivate' if user.access == 'active' else 'Activate' }}
+                            </button>
+                        </form>
+                        <button class="btn btn-sm btn-info" onclick="openMessengerChat({{ user.user_id }}, '{{ user.first_name }} {{ user.last_name }}')">Message</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+ <!-- Chat Box -->
+<div id="chatBox2" class="chat-box" style="display: none;">
+    <div class="chat-header">
+        <span id="chatUser2">Chat</span>
+        <button type="button" id="closeChat2" style="background: none; border: none; color: white;" onclick="closeMessengerChat()">&times;</button>
+    </div>
+    <div id="chatMessages2" class="chat-messages"></div>
+    <div class="chat-input">
+        <textarea id="chatInput2" placeholder="Type a message..."></textarea>
+        <button id="sendChat2">Send</button>
+    </div>
+</div>
+
+    <script>// Open the chat box and set the user details
+        function openMessengerChat(userId, userName) {
+            // Set the chat header to the user's name
+            document.getElementById('chatUser2').textContent = 'Message ' + userName;
+        
+            // Show the chat box
+            document.getElementById('chatBox2').style.display = 'block';
+        
+            // Optionally, you can store the userId in a global variable or as data in the chat box
+            document.getElementById('chatBox2').setAttribute('data-user-id', userId);
+        }
+        
+        // Close the chat box
+        function closeMessengerChat() {
+            // Hide the chat box
+            document.getElementById('chatBox2').style.display = 'none';
+        
+            // Optionally, you can clear the chat input and messages
+            document.getElementById('chatInput2').value = '';
+            document.getElementById('chatMessages2').innerHTML = '';
+        }</script>
+        <script>document.getElementById("sendChat2").addEventListener("click", function() {
+            const chatInput = document.getElementById("chatInput2").value.trim();
+            
+            if (chatInput !== "") {
+                const senderId = 1; // Replace with actual sender ID (you may get this from session or user context)
+                const receiverId = 2; // Replace with actual receiver ID (you can get this dynamically)
+                
+                // Send the message to the backend
+                fetch('/write_message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sender_id: senderId,
+                        receiver_id: receiverId,
+                        message: chatInput
+                    })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    console.log("Message sent:", data);
+                    // Optionally update chat messages in the UI
+                    const chatMessages = document.getElementById("chatMessages2");
+                    const newMessage = document.createElement("div");
+                    newMessage.classList.add("chat-message");
+                    newMessage.textContent = chatInput;
+                    chatMessages.appendChild(newMessage);
+                    
+                    // Clear the input field
+                    document.getElementById("chatInput2").value = "";
+                })
+                .catch(error => {
+                    console.error("Error sending message:", error);
+                });
+            }
+        });</script>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>{% include 'footer.html' %}
+</html>

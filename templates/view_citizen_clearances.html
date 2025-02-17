@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barangay Clearances</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    {% include "header.html" %}
+    <div class="container mt-5">
+        <h2>Barangay Clearances for {{ citizen.NAME }}</h2>
+        <a href="/add_barangay_clearance/{{ citizen.ID }}" class="btn btn-primary mb-3">Add Clearance</a>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Certificate Number</th>
+                    <th>Purpose</th>
+                    <th>Issued On</th>
+                    <th>Issued At</th>
+                    <th>Mode of Payment</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for clearance in clearances %}
+                <tr>
+                    <td>{{ clearance.certificate_number }}</td>
+                    <td>{{ clearance.purpose }}</td>
+                    <td>{{ clearance.issued_on }}</td>
+                    <td>{{ clearance.issued_at }}</td>
+                    <td>{{ clearance.mode_of_payment }}</td>
+                    <td>
+                        <!-- Add Edit/Delete Actions Here -->
+                        <a href="#" class="btn btn-warning btn-sm">Edit</a>
+                        <a href="#" class="btn btn-danger btn-sm">Delete</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

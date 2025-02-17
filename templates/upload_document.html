@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <meta charset="UTF-8">
+    <title>Upload Document - {{ citizen.NAME }}</title>
+    <style>/* Global Styles */
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .container {
+            width: 80%;
+            max-width: 900px;
+            margin: 50px auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .title {
+            text-align: center;
+            color: #4CAF50;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        
+        .form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .input-file {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        
+        .input-text {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        
+        .btn:hover {
+            background-color: #45a049;
+        }
+        
+        .back-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .back-btn {
+            text-decoration: none;
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        
+        .back-btn:hover {
+            text-decoration: underline;
+        }</style>
+</head>
+<body>
+    {% include "chatbase.html" %}
+    {% include 'header2.html' %}
+    
+    <div class="container">
+        <h1 class="title">Upload Document for {{ citizen.NAME }}</h1>
+        
+        <form method="POST" enctype="multipart/form-data" class="form">
+            <div class="form-group">
+                <label for="document">Select Document:</label>
+                <input type="file" id="document" name="document" required class="input-file">
+            </div>
+            
+            <div class="form-group">
+                <label for="description">Document Description:</label>
+                <textarea id="description" name="description" placeholder="Enter a brief description of the document" class="input-text" required></textarea>
+            </div>
+            
+            <button type="submit" class="btn">Upload</button>
+        </form>
+        
+        <div class="back-link">
+            <a href="/citizen_dashboard" class="back-btn">Back to Dashboard</a>
+        </div>
+    </div>
+
+</body>
+</html>

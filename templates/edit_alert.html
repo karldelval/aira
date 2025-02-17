@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Alert - {{ alert.name }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    {% include "chatbase.html" %}
+    {% include 'header2.html' %}
+
+    <div class="container">
+        <h1>Edit Alert: {{ alert.name }}</h1>
+
+        <form method="POST">
+            <label for="name">Alert Name:</label>
+            <input type="text" id="name" name="name" value="{{ alert.name }}" required><br><br>
+
+            <label for="urgency">Urgency Level:</label>
+            <select id="urgency" name="urgency" required>
+                <option value="low" {% if alert.urgency == 'low' %} selected {% endif %}>Low</option>
+                <option value="medium" {% if alert.urgency == 'medium' %} selected {% endif %}>Medium</option>
+                <option value="high" {% if alert.urgency == 'high' %} selected {% endif %}>High</option>
+            </select><br><br>
+
+            <label for="location">Location:</label>
+            <input type="text" id="location" name="location" value="{{ alert.location }}" required><br><br>
+
+            <label for="category">Incident Category:</label>
+            <input type="text" id="category" name="category" value="{{ alert.category }}" required><br><br>
+
+            <label for="alert_method">Alert Method:</label>
+            <select id="alert_method" name="alert_method" required>
+                <option value="email" {% if alert.alert_method == 'email' %} selected {% endif %}>Email</option>
+                <option value="sms" {% if alert.alert_method == 'sms' %} selected {% endif %}>SMS</option>
+                <option value="messenger" {% if alert.alert_method == 'messenger' %} selected {% endif %}>Messenger (Telegram, Viber, etc.)</option>
+            </select><br><br>
+
+            <label for="contact_details">Contact Details:</label>
+            <input type="text" id="contact_details" name="contact_details" value="{{ alert.contact_details }}" required><br><br>
+
+            <button type="submit">Update Alert</button>
+        </form>
+    </div>
+</body>
+</html>

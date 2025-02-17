@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensor Map</title>
+    <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css' rel='stylesheet' />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js'></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        #map-container {
+            position: relative;
+            width: 100%;
+            height: 800px;
+        }
+        #map-2d, #map-3d {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        #map-3d { 
+            display: none; 
+        }
+
+        .view-history-btn {
+        margin: 10px 0;
+        padding: 8px 16px;
+        background: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+    .view-history-btn:hover {
+        background: #45a049;
+    }
+
+    .view-history-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+
+    .chart-container {
+        margin-top: 15px;
+        height: 200px;
+        width: 100%;
+    }
+
+    .loading-spinner {
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #3498db;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        animation: spin 1s linear infinite;
+        margin: 10px auto;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+        .map-controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .view-toggle, .sensor-toggle {
+            margin: 5px;
+            padding: 8px 16px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            display: inline-block;
+        }
+        .view-toggle:hover, .sensor-toggle:hover {
+            background: #45a049;
+        }
+        .view-toggle.active, .sensor-toggle.active {
+            background: #357abd;
+        }
+        .map-style-control {
+            position: absolute;
+            top: 300px;
+            left: 10px;
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            display: none;
+            max-height: calc(100% - 160px);
+            overflow-y: auto;
+        }
+        .style-button {
+            display: block;
+            width: 100%;
+            margin: 5px 0;
+            padding: 8px 16px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .style-button:hover {
+            background: #45a049;
+        }
+        .style-button.active {
+            background: #357abd;
+        }
+        .sensor-type-controls {
+            margin-top: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .sensor-marker {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .sensor-marker:hover {
+            transform: scale(1.1);
+        }
+        .sensor-popup {
+            min-width: 350px;
+            max-width: 400px;
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .sensor-popup h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+        .sensor-value {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+            margin: 5px 0;
+        }
+        .value-indicator {
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: white;
+            text-align: center;
+        }
+        .received_at {
+            font-size: 12px;
+            color: #666;
+            margin-top: 10px;
+        }
+        .chart-container {
+            margin-top: 15px;
+            height: 200px;
+            width: 100%;
+        }
+        .mapboxgl-popup {
+            max-width: none !important;
+        }
+        .leaflet-popup {
+            max-width: none !important;
+        }
+        .leaflet-popup-content {
+            margin: 0;
+            width: auto !important;
+        }
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .refresh-controls {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #ddd;
+        }
+        #refresh-icon {
+            display: inline-block;
+            font-size: 16px;
+        }
+        .data-table-container {
+            margin: 20px;
+        }
+        .table-responsive {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+        .sensor-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .sensor-table th, .sensor-table td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        .sensor-table th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+            color: black;
+        }
+        .sensor-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .sensor-table tr:hover {
+            background-color: #f5f5f5;
+        }
+        .value-cell {
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>{% include 'header.html' %}
+    <div id="container" style="margin-left: 20px;">
+        <h1>AIRA iOT Sensor Map</h1>
+        <p>Shows the data from iOT sensors integrated to the command center.</p>
+    </div>
+    <div id="map-container">
+        <div id="map-2d"></div>
+        <div id="map-3d"></div>
+        <div class="map-controls">
+            <button class="view-toggle active" id="2d-view">2D View</button>
+            <button class="view-toggle" id="3d-view">3D View</button>
+            <div class="sensor-type-controls">
+                <button class="sensor-toggle active" id="indoor-sensors">Indoor</button>
+                <button class="sensor-toggle" id="outdoor-sensors">Outdoor</button>
+                <button class="sensor-toggle" id="noise-sensors">Noise</button>
+            </div>
+        </div>
+        <div class="map-style-control" id="style-controls">
+            <button class="style-button" data-style="mapbox://styles/mapbox/streets-v12">Streets (Latest)</button>
+            <button class="style-button" data-style="mapbox://styles/mapbox/outdoors-v12">Outdoors</button>
+            <button class="style-button" data-style="mapbox://styles/mapbox/light-v11">Light</button>
+            <button class="style-button" data-style="mapbox://styles/mapbox/dark-v11">Dark</button>
+            <button class="style-button" data-style="mapbox://styles/mapbox/satellite-v9">Satellite</button>
+            <button class="style-button" data-style="mapbox://styles/mapbox/satellite-streets-v12">Satellite Streets</button>
+            <button class="style-button" data-style="mapbox://styles/mapbox/navigation-day-v1">Navigation Day</button>
+            <button class="style-button" data-style="mapbox://styles/mapbox/navigation-night-v1">Navigation Night</button>
+        </div>
+    </div>
+    <div class="data-table-container">
+        <h2 id="table-title">Sensor Data Summary</h2>
+        <div class="table-responsive">
+            <table class="sensor-table">
+                <thead id="table-head"></thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let map2D, map3D, currentView = '2d';
+        let markers2D = new Map();
+        let markers3D = new Map();
+        let charts = new Map();
+        let currentSensorType = 'indoor';
+        let lastFetchTime = 0;
+        let lastDataUpdate = null;
+        const REFRESH_INTERVAL = 60000; // 1 minute in milliseconds
+        let autoRefreshEnabled = false;
+        let refreshIntervalId = null;
+
+        const CENTER_LAT = 14.6098153;
+        const CENTER_LNG = 121.0418842;
+        const ZOOM_LEVEL = 10;
+
+        function addRefreshControl() {
+            const controlsDiv = document.querySelector('.map-controls');
+            const refreshControl = document.createElement('div');
+            refreshControl.className = 'refresh-controls';
+            refreshControl.innerHTML = `
+                <button id="refresh-button" class="view-toggle">
+                    <span id="refresh-icon">↻</span> Refresh Data
+                </button>
+                <button id="auto-refresh-toggle" class="view-toggle">
+                    Enable Auto-refresh
+                </button>
+                <span id="last-update" style="display: block; font-size: 12px; margin-top: 5px;"></span>
+            `;
+            controlsDiv.appendChild(refreshControl);
+
+            document.getElementById('refresh-button').addEventListener('click', manualRefresh);
+            document.getElementById('auto-refresh-toggle').addEventListener('click', toggleAutoRefresh);
+        }
+
+        function getColorForValue(value, type) {
+            const levels = {
+                co2: [[0, 800, '#22c55e'], [801, 1000, '#eab308'], [1001, Infinity, '#ef4444']],
+                pm2_5: [[0, 12, '#22c55e'], [12.1, 35.4, '#eab308'], [35.5, Infinity, '#ef4444']],
+                tvoc: [[0, 250, '#22c55e'], [251, 2000, '#eab308'], [2001, Infinity, '#ef4444']],
+                noise: [[0, 45, '#22c55e'], [46, 75, '#eab308'], [76, Infinity, '#ef4444']],
+                nox: [[0, 100, '#22c55e'], [101, 200, '#eab308'], [201, Infinity, '#ef4444']]
+            };
+
+            const ranges = levels[type] || levels.co2;
+            for (const [min, max, color] of ranges) {
+                if (value >= min && value <= max) return color;
+            }
+            return '#6b7280';
+        }
+
+        async function fetchHistoricalData(deviceId) {
+            try {
+                let endpoint;
+                switch(currentSensorType) {
+                    case 'indoor':
+                        endpoint = `/get_iaq_history/${deviceId}`;
+                        break;
+                    case 'outdoor':
+                        endpoint = `/get_oaq_history/${deviceId}`;
+                        break;
+                    case 'noise':
+                        endpoint = `/get_noise_history/${deviceId}`;
+                        break;
+                }
+                const response = await fetch(endpoint);
+                return await response.json();
+            } catch (error) {
+                console.error('Error fetching historical data:', error);
+                return null;
+            }
+        }
+
+        function createChart(canvasId, historicalData) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            
+            // Limit to last 30 data points for better performance
+            const limitedData = historicalData.slice(-5);
+            
+            if (charts.has(canvasId)) {
+                charts.get(canvasId).destroy();
+            }
+            
+            let datasets;
+            if (currentSensorType === 'indoor') {
+                datasets = [
+                    {
+                        label: 'CO2 (ppm)',
+                        data: limitedData.map(d => d.co2),
+                        borderColor: '#ef4444',
+                        fill: false
+                    },
+                    {
+                        label: 'Temperature (°C)',
+                        data: limitedData.map(d => d.temperature),
+                        borderColor: '#22c55e',
+                        fill: false
+                    },
+                    {
+                        label: 'Humidity (%)',
+                        data: limitedData.map(d => d.humidity),
+                        borderColor: '#3b82f6',
+                        fill: false
+                    }
+                ];
+            } else if (currentSensorType === 'outdoor') {
+                datasets = [
+                    {
+                        label: 'CO2 (ppm)',
+                        data: limitedData.map(d => d.CO2),
+                        borderColor: '#ef4444',
+                        fill: false
+                    },
+                    {
+                        label: 'Temperature (°C)',
+                        data: limitedData.map(d => d.Temp),
+                        borderColor: '#22c55e',
+                        fill: false
+                    },
+                    {
+                        label: 'Humidity (%)',
+                        data: limitedData.map(d => d.Hum),
+                        borderColor: '#3b82f6',
+                        fill: false
+                    },
+                    {
+                        label: 'NOX (ppb)',
+                        data: limitedData.map(d => d.NOX),
+                        borderColor: '#9333ea',
+                        fill: false
+                    }
+                ];
+            } else {
+                datasets = [
+                    {
+                        label: 'Average Noise (dB)',
+                        data: limitedData.map(d => d.averageNoise),
+                        borderColor: '#22c55e',
+                        fill: false
+                    },
+                    {
+                        label: 'Noise Level (dB)',
+                        data: limitedData.map(d => d.noiseLevel),
+                        borderColor: '#ef4444',
+                        fill: false
+                    },
+                    {
+                        label: 'Max Noise (dB)',
+                        data: limitedData.map(d => d.maxNoise),
+                        borderColor: '#3b82f6',
+                        fill: false
+                    }
+                ];
+            }
+            
+            const chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: limitedData.map(d => {
+                        const date = new Date(d.received_at);
+                        return date.toLocaleTimeString();
+                    }),
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 0
+                    }
+                }
+            });
+            
+            charts.set(canvasId, chart);
+            return chart;
+        }
+
+    
+function createPopupContent(data) {
+    const chartId = `chart-${data.device_id}`;
+
+    let sensorValuesContent = '';
+    if (currentSensorType === 'indoor') {
+        const co2Color = getColorForValue(data.co2, 'co2');
+        const pm25Color = getColorForValue(data.pm2_5, 'pm2_5');
+        const tvocColor = getColorForValue(data.tvoc, 'tvoc');
+        
+        sensorValuesContent = `
+            <div class="sensor-values">
+                <div class="sensor-value">
+                    <span>Temperature:</span>
+                    <span>${data.temperature}°C</span>
+                </div>
+                <div class="sensor-value">
+                    <span>Humidity:</span>
+                    <span>${data.humidity}%</span>
+                </div>
+                <div class="sensor-value">
+                    <span>CO2:</span>
+                    <span class="value-indicator" style="background-color: ${co2Color}">${data.co2} ppm</span>
+                </div>
+                <div class="sensor-value">
+                    <span>TVOC:</span>
+                    <span class="value-indicator" style="background-color: ${tvocColor}">${data.tvoc} ppb</span>
+                </div>
+                <div class="sensor-value">
+                    <span>PM2.5:</span>
+                    <span class="value-indicator" style="background-color: ${pm25Color}">${data.pm2_5} µg/m³</span>
+                </div>
+                <div class="sensor-value">
+                    <span>PM10:</span>
+                    <span>${data.pm10} µg/m³</span>
+                </div>
+                <div class="sensor-value">
+                    <span>HCHO:</span>
+                    <span>${data.hcho} mg/m³</span>
+                </div>
+                <div class="sensor-value">
+                    <span>Light:</span>
+                    <span>${data.light_level} lux</span>
+                </div>
+                <div class="sensor-value">
+                    <span>Pressure:</span>
+                    <span>${data.pressure} hPa</span>
+                </div>
+            </div>`;
+    } else if (currentSensorType === 'outdoor') {
+        const co2Color = getColorForValue(data.CO2, 'co2');
+        const pm25Color = getColorForValue(data.PM25, 'pm2_5');
+        const noxColor = getColorForValue(data.NOX, 'nox');
+        
+        sensorValuesContent = `
+            <div class="sensor-values">
+                <div class="sensor-value">
+                    <span>Temperature:</span>
+                    <span>${data.Temp}°C</span>
+                </div>
+                <div class="sensor-value">
+                    <span>Humidity:</span>
+                    <span>${data.Hum}%</span>
+                </div>
+                <div class="sensor-value">
+                    <span>CO2:</span>
+                    <span class="value-indicator" style="background-color: ${co2Color}">${data.CO2} ppm</span>
+                </div>
+                <div class="sensor-value">
+                    <span>PM2.5:</span>
+                    <span class="value-indicator" style="background-color: ${pm25Color}">${data.PM25} µg/m³</span>
+                </div>
+                <div class="sensor-value">
+                    <span>PM10:</span>
+                    <span>${data.PM10} µg/m³</span>
+                </div>
+                <div class="sensor-value">
+                    <span>NOX:</span>
+                    <span class="value-indicator" style="background-color: ${noxColor}">${data.NOX} ppb</span>
+                </div>
+            </div>`;
+    } else {
+        const noiseColor = getColorForValue(data.noiseLevel, 'noise');
+        sensorValuesContent = `
+            <div class="sensor-values">
+                <div class="sensor-value">
+                    <span>Average Noise:</span>
+                    <span>${data.averageNoise} dB</span>
+                </div>
+                <div class="sensor-value">
+                    <span>Current Level:</span>
+                    <span class="value-indicator" style="background-color: ${noiseColor}">${data.noiseLevel} dB</span>
+                </div>
+                <div class="sensor-value">
+                    <span>Max Noise:</span>
+                    <span>${data.maxNoise} dB</span>
+                </div>
+                <div class="sensor-value">
+                    <span>Min Noise:</span>
+                    <span>${data.MinNoise} dB</span>
+                </div>
+            </div>`;
+    }
+
+    return `
+        <div class="sensor-popup">
+            <h3>Device ${data.device_id}</h3>
+            ${sensorValuesContent}
+            <div class="history-section">
+                <button class="view-history-btn" onclick="loadHistory('${data.device_id}')" style="margin: 10px 0; padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    View History
+                </button>
+                <div id="chart-container-${data.device_id}" style="display: none;">
+                    <div class="chart-container">
+                        <canvas id="${chartId}"></canvas>
+                        <div id="loading-${data.device_id}" class="loading-spinner" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="received_at">
+                Last updated: ${data.received_at}
+            </div>
+        </div>
+    `;
+}
+
+// Add a new function to handle loading history
+async function loadHistory(deviceId) {
+    const chartContainer = document.getElementById(`chart-container-${deviceId}`);
+    const loadingSpinner = document.getElementById(`loading-${deviceId}`);
+    const viewHistoryBtn = document.querySelector(`button[onclick="loadHistory('${deviceId}')"]`);
+
+    // If chart is already visible, hide it
+    if (chartContainer.style.display === 'block') {
+        chartContainer.style.display = 'none';
+        viewHistoryBtn.textContent = 'View History';
+        return;
+    }
+
+    // Show loading spinner and disable button
+    loadingSpinner.style.display = 'block';
+    viewHistoryBtn.disabled = true;
+    viewHistoryBtn.style.opacity = '0.5';
+
+    try {
+        const historicalData = await fetchHistoricalData(deviceId);
+        
+        if (historicalData && historicalData.length > 0) {
+            const chartId = `chart-${deviceId}`;
+            createChart(chartId, historicalData);
+            chartContainer.style.display = 'block';
+            viewHistoryBtn.textContent = 'Hide History';
+        } else {
+            alert('No historical data available');
+        }
+    } catch (error) {
+        console.error('Error loading historical data:', error);
+        alert('Error loading historical data');
+    } finally {
+        loadingSpinner.style.display = 'none';
+        viewHistoryBtn.disabled = false;
+        viewHistoryBtn.style.opacity = '1';
+    }
+}
+
+
+
+
+        function updateDataTable(data) {
+            const tableHead = document.getElementById('table-head');
+            const tableBody = document.getElementById('table-body');
+            const tableTitle = document.getElementById('table-title');
+            
+            tableHead.innerHTML = '';
+            tableBody.innerHTML = '';
+            
+            if (!data || data.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="100%">No data available</td></tr>';
+                return;
+            }
+
+            // Sort data by received_at in descending order and take top 20
+            const sortedData = [...data].sort((a, b) => {
+                return new Date(b.received_at) - new Date(a.received_at);
+            }).slice(0, 20);
+
+            // Create table headers based on sensor type
+            let headers;
+            if (currentSensorType === 'indoor') {
+                tableTitle.textContent = 'Indoor Air Quality Sensors Summary (Latest 20)';
+                headers = [
+                    'Device ID', 'Temperature (°C)', 'Humidity (%)', 'CO₂ (ppm)', 
+                    'TVOC (ppb)', 'PM2.5 (µg/m³)', 'PM10 (µg/m³)', 'Last Updated'
+                ];
+            } else if (currentSensorType === 'outdoor') {
+                tableTitle.textContent = 'Outdoor Air Quality Sensors Summary (Latest 20)';
+                headers = [
+                    'Device ID', 'Temperature (°C)', 'Humidity (%)', 'CO₂ (ppm)', 
+                    'PM2.5 (µg/m³)', 'PM10 (µg/m³)', 'NOX (ppb)', 'Last Updated'
+                ];
+            } else {
+                tableTitle.textContent = 'Noise Pollution Sensors Summary (Latest 20)';
+                headers = [
+                    'Device ID', 'Average Noise (dB)', 'Current Level (dB)', 
+                    'Max Noise (dB)', 'Min Noise (dB)', 'Last Updated'
+                ];
+            }
+
+            // Add headers
+            const headerRow = document.createElement('tr');
+            headers.forEach(header => {
+                const th = document.createElement('th');
+                th.textContent = header;
+                headerRow.appendChild(th);
+            });
+            tableHead.appendChild(headerRow);
+
+            // Add data rows
+            sortedData.forEach(sensor => {
+                const row = document.createElement('tr');
+                
+                if (currentSensorType === 'indoor') {
+                    row.innerHTML = `
+                        <td>${sensor.device_id}</td>
+                        <td class="value-cell">${sensor.temperature?.toFixed(1) || 'N/A'}</td>
+                        <td class="value-cell">${sensor.humidity?.toFixed(1) || 'N/A'}</td>
+                        <td class="value-cell">${sensor.co2?.toFixed(0) || 'N/A'}</td>
+                        <td class="value-cell">${sensor.tvoc?.toFixed(0) || 'N/A'}</td>
+                        <td class="value-cell">${sensor.pm2_5?.toFixed(1) || 'N/A'}</td>
+                        <td class="value-cell">${sensor.pm10?.toFixed(1) || 'N/A'}</td>
+                        <td>${new Date(sensor.received_at).toLocaleString()}</td>
+                    `;
+                } else if (currentSensorType === 'outdoor') {
+                    row.innerHTML = `
+                        <td>${sensor.device_id}</td>
+                        <td class="value-cell">${sensor.Temp?.toFixed(1) || 'N/A'}</td>
+                        <td class="value-cell">${sensor.Hum?.toFixed(1) || 'N/A'}</td>
+                        <td class="value-cell">${sensor.CO2?.toFixed(0) || 'N/A'}</td>
+                        <td class="value-cell">${sensor.PM25?.toFixed(1) || 'N/A'}</td>
+                        <td class="value-cell">${sensor.PM10?.toFixed(1) || 'N/A'}</td>
+                        <td class="value-cell">${sensor.NOX?.toFixed(1) || 'N/A'}</td>
+                        <td>${new Date(sensor.received_at).toLocaleString()}</td>
+                    `;
+                } else {
+                    row.innerHTML = `
+                        <td>${sensor.device_id}</td>
+                        <td class="value-cell">${sensor.averageNoise?.toFixed(1) || 'N/A'}</td>
+                        <td class="value-cell">${sensor.noiseLevel?.toFixed(1) || 'N/A'}</td>
+                        <td class="value-cell">${sensor.maxNoise?.toFixed(1) || 'N/A'}</td>
+                        <td class="value-cell">${sensor.MinNoise?.toFixed(1) || 'N/A'}</td>
+                        <td>${new Date(sensor.received_at).toLocaleString()}</td>
+                    `;
+                }
+                
+                tableBody.appendChild(row);
+            });
+        }
+
+        // Optimized fetch function with throttling
+        async function fetchAndUpdateSensors(force = false) {
+            const now = Date.now();
+            
+            if (!force && (now - lastFetchTime < REFRESH_INTERVAL)) {
+                console.log('Skipping fetch - too soon since last update');
+                return;
+            }
+
+            try {
+                let endpoint;
+                switch(currentSensorType) {
+                    case 'indoor':
+                        endpoint = '/get_iaq_data';
+                        break;
+                    case 'outdoor':
+                        endpoint = '/get_oaq_data';
+                        break;
+                    case 'noise':
+                        endpoint = '/get_noise_data';
+                        break;
+                }
+                
+                const response = await fetch(endpoint);
+                const data = await response.json();
+                
+                if (lastDataUpdate && JSON.stringify(data) === JSON.stringify(lastDataUpdate)) {
+                    console.log('No new data available');
+                    updateLastUpdateTime();
+                    return;
+                }
+
+                updateMarkers(data);
+                updateDataTable(data);
+                lastDataUpdate = data;
+                lastFetchTime = now;
+                updateLastUpdateTime();
+            } catch (error) {
+                console.error('Error fetching sensor data:', error);
+                showErrorMessage('Failed to fetch sensor data');
+            }
+        }
+
+        function updateLastUpdateTime() {
+            const lastUpdateSpan = document.getElementById('last-update');
+            if (lastUpdateSpan) {
+                lastUpdateSpan.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+            }
+        }
+
+        function showErrorMessage(message) {
+            console.error(message);
+            // You can add more user-friendly error handling here
+        }
+
+        function manualRefresh() {
+            const refreshButton = document.getElementById('refresh-button');
+            const refreshIcon = document.getElementById('refresh-icon');
+            
+            refreshIcon.style.display = 'inline-block';
+            refreshIcon.style.animation = 'spin 1s linear infinite';
+            
+            fetchAndUpdateSensors(true).finally(() => {
+                refreshIcon.style.animation = '';
+            });
+        }
+
+        function toggleAutoRefresh() {
+            const autoRefreshButton = document.getElementById('auto-refresh-toggle');
+            autoRefreshEnabled = !autoRefreshEnabled;
+            
+            if (autoRefreshEnabled) {
+                autoRefreshButton.textContent = 'Disable Auto-refresh';
+                autoRefreshButton.classList.add('active');
+                refreshIntervalId = setInterval(() => fetchAndUpdateSensors(), REFRESH_INTERVAL);
+            } else {
+                autoRefreshButton.textContent = 'Enable Auto-refresh';
+                autoRefreshButton.classList.remove('active');
+                if (refreshIntervalId) {
+                    clearInterval(refreshIntervalId);
+                    refreshIntervalId = null;
+                }
+            }
+        }
+
+        function clearMarkers() {
+    markers2D.forEach(marker => marker.remove());
+    markers2D.clear();
+    
+    markers3D.forEach(item => {
+        item.marker.remove();
+        item.popup.remove();
+    });
+    markers3D.clear();
+}
+   
+
+function updateMarkers(data) {
+    clearMarkers();
+
+    data.forEach(sensor => {
+        if (!sensor.latitude || !sensor.longitude) return;
+
+        let color;
+        if (currentSensorType === 'indoor') {
+            color = getColorForValue(sensor.co2, 'co2');
+        } else if (currentSensorType === 'outdoor') {
+            color = getColorForValue(sensor.CO2, 'co2');
+        } else {
+            color = getColorForValue(sensor.noiseLevel, 'noise');
+        }
+        
+        // Create 2D markers
+        if (currentView === '2d' && map2D) {
+            const markerIcon = L.divIcon({
+                className: 'sensor-marker',
+                html: `<div style="width: 32px; height: 32px; background-color: ${color}; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">${currentSensorType[0].toUpperCase()}</div>`,
+                iconSize: [32, 32]
+            });
+
+            const popup2D = L.popup({
+                closeButton: true,
+                className: 'sensor-popup-wrapper',
+                autoClose: false,
+                closeOnClick: false
+            }).setContent(createPopupContent(sensor));
+
+            const marker = L.marker([sensor.latitude, sensor.longitude], { icon: markerIcon });
+            marker.bindPopup(popup2D);
+
+            marker.addTo(map2D);
+            markers2D.set(sensor.device_id, marker);
+        }
+        
+        // Create 3D markers
+    // Inside updateMarkers function, update the 3D markers section:
+if (currentView === '3d' && map3D) {
+    // Create marker DOM element
+    const markerDiv = document.createElement('div');
+    markerDiv.className = 'sensor-marker mapboxgl-marker';
+    markerDiv.style.cssText = `
+        background-color: ${color};
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+    `;
+    markerDiv.innerHTML = currentSensorType[0].toUpperCase();
+
+    // Create popup
+    const popup = new mapboxgl.Popup({
+        closeButton: true,
+        closeOnClick: false,
+        maxWidth: 'none',
+        className: 'sensor-popup-wrapper',
+        offset: [0, -20]
+    })
+    .setHTML(createPopupContent(sensor));
+
+    // Create marker and bind popup
+    const marker = new mapboxgl.Marker({
+        element: markerDiv,
+        anchor: 'bottom'
+    })
+    .setLngLat([sensor.longitude, sensor.latitude])
+    .setPopup(popup)  // Bind popup to marker
+    .addTo(map3D);
+
+    // Store marker and popup
+    markers3D.set(sensor.device_id, {
+        marker: marker,
+        popup: popup
+    });
+}
+    });
+}
+
+function initMaps() {
+    // 2D map initialization (remains the same)
+    map2D = L.map('map-2d').setView([CENTER_LAT, CENTER_LNG], ZOOM_LEVEL);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map2D);
+
+    // 3D map initialization with modified handling
+    mapboxgl.accessToken = 'pk.eyJ1IjoiamFzb25jZGVsYXJvc2EiLCJhIjoiY202MGd4ZXNyMDF2MDJpcTR4aHhqMGNvOSJ9.SVKcekxHU0w8-6AoRp9K9A';
+    map3D = new mapboxgl.Map({
+        container: 'map-3d',
+        style: 'mapbox://styles/mapbox/navigation-day-v1',
+        center: [CENTER_LNG, CENTER_LAT],
+        zoom: ZOOM_LEVEL,
+        pitch: 60,
+        bearing: -17.6,
+        antialias: true,
+        preserveDrawingBuffer: true,
+        maxZoom: 20
+    });
+
+    map3D.addControl(new mapboxgl.NavigationControl({ 
+        showCompass: true, 
+        showZoom: true,
+        visualizePitch: true
+    }), 'top-right');
+
+    // Wait for both style and map to be loaded
+    map3D.on('style.load', () => {
+        map3D.addLayer({
+            'id': '3d-buildings',
+            'source': 'composite',
+            'source-layer': 'building',
+            'filter': ['==', 'extrude', 'true'],
+            'type': 'fill-extrusion',
+            'minzoom': 15,
+            'paint': {
+                'fill-extrusion-color': '#aaa',
+                'fill-extrusion-height': [
+                    'interpolate',
+                    ['linear'],
+                    ['zoom'],
+                    15,
+                    0,
+                    15.05,
+                    ['get', 'height']
+                ],
+                'fill-extrusion-base': [
+                    'interpolate',
+                    ['linear'],
+                    ['zoom'],
+                    15,
+                    0,
+                    15.05,
+                    ['get', 'min_height']
+                ],
+                'fill-extrusion-opacity': 0.6
+            }
+        });
+    });
+
+    // Ensure the map is fully loaded before adding markers
+    map3D.on('load', () => {
+        setupMapStyleControls();
+        // Initial data fetch only after map is loaded
+        if (currentView === '3d') {
+            fetchAndUpdateSensors(true);
+        }
+    });
+
+    // Initial fetch for 2D view
+    if (currentView === '2d') {
+        fetchAndUpdateSensors(true);
+    }
+}
+
+        function setupMapStyleControls() {
+            const styleButtons = document.querySelectorAll('.style-button');
+            styleButtons.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const style = e.target.dataset.style;
+                    if (map3D) {
+                        map3D.setStyle(style);
+
+                        map3D.once('style.load', () => {
+                            map3D.addLayer({
+                                'id': '3d-buildings',
+                                'source': 'composite',
+                                'source-layer': 'building',
+                                'filter': ['==', 'extrude', 'true'],
+                                'type': 'fill-extrusion',
+                                'minzoom': 15,
+                                'paint': {
+                                    'fill-extrusion-color': '#aaa',
+                                    'fill-extrusion-height': [
+                                        'interpolate',
+                                        ['linear'],
+                                        ['zoom'],
+                                        15,
+                                        0,
+                                        15.05,
+                                        ['get', 'height']
+                                    ],
+                                    'fill-extrusion-base': [
+                                        'interpolate',
+                                        ['linear'],
+                                        ['zoom'],
+                                        15,
+                                        0,
+                                        15.05,
+                                        ['get', 'min_height']
+                                    ],
+                                    'fill-extrusion-opacity': 0.6
+                                }
+                            });
+                            
+                            fetchAndUpdateSensors(true);
+                        });
+
+                        styleButtons.forEach(btn => btn.classList.remove('active'));
+                        e.target.classList.add('active');
+                    }
+                });
+            });
+        }
+
+        function toggleMapView(viewType) {
+            const map2DElement = document.getElementById('map-2d');
+            const map3DElement = document.getElementById('map-3d');
+            const styleControls = document.getElementById('style-controls');
+            
+            document.querySelectorAll('.view-toggle').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            currentView = viewType;
+
+            if (viewType === '2d') {
+                document.getElementById('2d-view').classList.add('active');
+                map2DElement.style.display = 'block';
+                map3DElement.style.display = 'none';
+                styleControls.style.display = 'none';
+                if (map2D) {
+                    map2D.invalidateSize();
+                    setTimeout(() => {
+                        map2D.setView([CENTER_LAT, CENTER_LNG], map2D.getZoom(), { animate: false });
+                    }, 50);
+                }
+            } else {
+                document.getElementById('3d-view').classList.add('active');
+                map2DElement.style.display = 'none';
+                map3DElement.style.display = 'block';
+                styleControls.style.display = 'block';
+                if (map3D) {
+                    map3D.resize();
+                    setTimeout(() => {
+                        map3D.jumpTo({
+                            center: [CENTER_LNG, CENTER_LAT],
+                            zoom: map3D.getZoom()
+                        });
+                    }, 50);
+                }
+            }
+
+            fetchAndUpdateSensors(true);
+        }
+
+        function toggleSensorType(type) {
+            document.querySelectorAll('.sensor-toggle').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(`${type}-sensors`).classList.add('active');
+            
+            // Clear existing charts when switching sensor types
+            charts.forEach(chart => chart.destroy());
+            charts.clear();
+            
+            currentSensorType = type;
+            fetchAndUpdateSensors(true);
+        }
+
+        // Initialize everything when the document is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize maps
+            initMaps();
+            
+            // Add refresh controls
+            addRefreshControl();
+            
+            // Add event listeners for view toggles
+            document.getElementById('2d-view').addEventListener('click', () => toggleMapView('2d'));
+            document.getElementById('3d-view').addEventListener('click', () => toggleMapView('3d'));
+            
+            // Add event listeners for sensor type toggles
+            document.getElementById('indoor-sensors').addEventListener('click', () => toggleSensorType('indoor'));
+            document.getElementById('outdoor-sensors').addEventListener('click', () => toggleSensorType('outdoor'));
+            document.getElementById('noise-sensors').addEventListener('click', () => toggleSensorType('noise'));
+
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                if (map2D && currentView === '2d') {
+                    map2D.invalidateSize();
+                }
+                if (map3D && currentView === '3d') {
+                    map3D.resize();
+                }
+            });
+
+            // Initial data fetch
+            fetchAndUpdateSensors(true);
+        });
+    </script>
+</body>
+</html>

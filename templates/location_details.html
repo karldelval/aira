@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+    <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ location_prediction['location'] }} - Incident Details</title>
+    <style>
+        /* Add your CSS styles here */
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Incident Prediction Details for {{ location_prediction['location'] }}</h1>
+
+        <h2>General Information</h2>
+        <p><strong>Incident Count:</strong> {{ location_prediction['incident_count'] }}</p>
+        <p><strong>Most Common Category:</strong> {{ location_prediction['most_common_category'] }}</p>
+        <p><strong>Prediction Time:</strong> {{ location_prediction['prediction_time'] }}</p>
+
+        <h2>Forecasted Incidents (Next 2 Weeks)</h2>
+        <ul>
+            {% for forecast in location_prediction['incident_prediction']['forecasted_incidents_next_2_weeks'] %}
+                <li>{{ forecast }}</li>
+            {% endfor %}
+        </ul>
+
+        <h2>Forecast Interpretation</h2>
+        <p>{{ location_prediction['incident_prediction']['forecast_interpretation'] }}</p>
+
+        <h2>Action Points</h2>
+        <ul>
+            {% for action in location_prediction['incident_prediction']['action_points'] %}
+                <li>{{ action }}</li>
+            {% endfor %}
+        </ul>
+
+        <h2>Prediction Summary</h2>
+        <p>{{ location_prediction['prediction'] }}</p>
+
+        <a href="/">Back to Overview</a>
+    </div>
+</body>
+</html>

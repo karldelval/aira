@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIRA Survey Scoring Map</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
+    <style>
+        /* Style the dropdown */
+        #question_id {
+            font-size: 18px;  /* Increase the font size */
+            padding: 10px;    /* Add padding inside the dropdown */
+            width: 100%;      /* Make the dropdown take the full width of its container */
+            height: 40px;     /* Increase the height of the dropdown */
+            border: 1px solid #ccc; /* Light border around the dropdown */
+            border-radius: 5px; /* Rounded corners */
+        }
+    
+        /* Style the options */
+        #question_id option {
+            font-size: 18px;  /* Increase font size for options */
+        }
+    </style>
+    <style>
+       
+    /* Make the map container taller */
+    #map {
+        height: 800px; /* Adjust this value as needed */
+        width: 100%;   /* Full width of the container */
+    }
+
+        .response-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .response-table th, .response-table td {
+            padding: 10px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        .response-table th {
+            background-color: #f4f4f4;
+        }
+        .filter-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+        .filter-container label {
+            margin-right: 10px;
+        }
+        .filter-container select, .filter-container button {
+            padding: 5px 10px;
+        }
+    </style>
+</head>
+<body>{% include "chatbase.html" %}
+    {% include 'header.html' %}
+
+    <div style="display: flex; align-items: center;">
+        <h1>AIRA SCORING HEAT MAP</h1><br>
+       
+    </div> The scoring heat map shows the % weight of certain groupings made from data coming from surveys or incidents, usually from choice-based questions.
+
+    <!-- Filter Form -->
+    <form method="POST" action="/scoringmap">
+        <label for="question_id">Select Question:</label>
+       
+<select name="question_id" id="question_id">
+    {% for question in questions %}
+        <option value="{{ question.id }}" {% if question.id == question_id %}selected{% endif %}>
+            {{ question.text }}
+        </option>
+    {% endfor %}
+</select>
+        <br>
+       
+        <br>
+        <button type="submit">Submit</button>
+    </form>
+
+    <!-- Heatmap -->
+    <div id="map"></div>
+
+    <!-- Responses Table -->
+    <div>
+        <h3>Responses</h3>
+        <table class="response-table">
+            <thead>
+                <tr>
+                    <th style="color: black;">Response</th>
+                    
+                    <th style="color: black;">Latitude</th>
+                    <th style="color: black;">Longitude</th>
+                    <th style="color: black;">Group</th>
+                    <th style="color: black;">Color Code</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for response in filtered_responses %}
+                    <tr>
+                        <td>{{ response.response_text }}</td>
+                        <td>{{ response.latitude }}</td>
+                        <td>{{ response.longitude }}</td>
+                        <td>{{ response.grouping }}</td>
+                        <td style="background-color: {{ response.colorcode or 'gray' }};">
+                            {{ response.colorcode or 'gray' }}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+    <script>
+        // Initialize the map
+        var map = L.map('map', {
+            center: [14.6440, 121.0320], // Default to Quezon City
+            zoom: 12,
+            maxZoom: 19
+        });
+    
+        // Add OpenStreetMap layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+    
+        // Geofences array
+        var geofences = [];
+    
+        // Marker layer group
+        var markers = L.layerGroup();
+    
+        // Fetch geofence and heatmap data
+        Promise.all([
+            fetch('/get_geofences').then(response => response.json()),
+            Promise.resolve({{ heatmap_data | tojson }}) // Passed from the backend
+        ]).then(([geofenceData, heatmapData]) => {
+            // Draw geofences
+            if (geofenceData.geofences && Array.isArray(geofenceData.geofences)) {
+                geofenceData.geofences.forEach(function(geofence) {
+                    // Create polygon for geofence
+                    var polygon = L.polygon(geofence.boundaries, {
+                        color: "blue",      // Default geofence border color
+                        weight: 2,          // Border thickness
+                        fillColor: "#3388ff", // Light blue fill color
+                        fillOpacity: 0.2    // Semi-transparent fill
+                    }).addTo(map)
+                      .bindPopup(`<b>${geofence.name}</b>`) // Show geofence name on click
+                      .bindTooltip(geofence.name, { permanent: true, direction: 'center' });
+    
+                    geofences.push({
+                        name: geofence.name,
+                        polygon: polygon
+                    });
+                });
+            }
+    
+            // Add markers with colorcode
+            heatmapData.forEach(function(item) {
+                var latitude = parseFloat(item.latitude);
+                var longitude = parseFloat(item.longitude);
+                var color = item.colorcode || "gray"; // Default to gray if no colorcode
+    
+                // Create circle marker
+                var marker = L.circleMarker([latitude, longitude], {
+                    color: color,
+                    fillColor: color,
+                    fillOpacity: 0.7,
+                    radius: 8,
+                    weight: 2,
+                    opacity: 1
+                }).bindPopup(`
+                    <b>Response:</b> ${item.response_text || "No Response"}<br>
+                    <b>Group:</b> ${item.grouping || "N/A"}<br>
+                    <b>Color Code:</b> ${color}
+                `);
+    
+                markers.addLayer(marker);
+            });
+    
+            // Add markers to the map
+            markers.addTo(map);
+    
+            // Adjust map bounds to fit all markers and geofences
+            var allLatLng = heatmapData.map(item => [parseFloat(item.latitude), parseFloat(item.longitude)]);
+            geofenceData.geofences.forEach(g => allLatLng.push(...g.boundaries));
+            if (allLatLng.length > 0) {
+                map.fitBounds(allLatLng);
+            }
+        }).catch(error => {
+            console.error('Error fetching geofences or heatmap data:', error);
+        });
+    </script>
+</body>
+</html>

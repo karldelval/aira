@@ -1,0 +1,281 @@
+<style>
+
+
+.chat-gif {
+width: 150px; /* Set your desired width */
+height: 150px; /* Set your desired height */
+object-fit: cover; /* Ensure the GIF covers the area properly */
+border-radius: 50%; /* This makes the image circular */
+border: 2px solid #fff; /* Optional: Adds a border around the GIF */
+}
+
+/* Chat bubbles container */
+.chat-modal-content {
+flex: 1;
+overflow-y: auto;
+padding: 10px;
+background-color: #f9f9f9;
+border-radius: 8px;
+}
+
+/* Chat bubbles */
+.chat-bubble {
+max-width: 75%;
+margin: 10px;
+padding: 10px 15px;
+border-radius: 15px;
+font-size: 19px;
+line-height: 1.5;
+word-wrap: break-word;
+}
+
+/* User message bubble */
+.chat-bubble.user {
+background-color: #d1e7ff;
+color: #05445E;
+align-self: flex-end;
+text-align: left;
+border-top-right-radius: 0;
+}
+
+/* AIRA response bubble */
+.chat-bubble.aira {
+background-color: #e2f2e6;
+color: #1d5c42;
+align-self: flex-start;
+text-align: left;
+border-top-left-radius: 0;
+}
+
+/* Chat container alignment */
+.chat-message {
+display: flex;
+justify-content: flex-start;
+}
+
+.chat-message.user {
+justify-content: flex-end;
+}
+.chat-icon:hover {
+    background-color: #bcc3bf;
+}
+
+/* Chat Modal */
+.chat-modal {
+    position: fixed;
+    bottom: 120px; /* Adjusted to show chat icon */
+    right: 20px;
+    width: 400px; /* Default width */
+    height: 600px; /* Default height */
+    min-width: 400px; /* Minimum width */
+    min-height: 600px; /* Minimum height */
+    max-width: 90%; /* Prevent overflow on smaller screens */
+    max-height: 80%; /* Prevent modal from covering the entire screen */
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    display: none;
+    flex-direction: column;
+    padding: 10px;
+    z-index: 1001;
+
+    /* Enable resizing */
+    resize: both; 
+    overflow: auto; /* Ensures content doesn't break during resize */
+}
+
+/* Optional: Chat Icon */
+.chat-icon {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    background-color: #007bff;
+    color: white;
+    border-radius: 50%;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    cursor: pointer;
+    z-index: 1002; /* Ensure it's above the modal */
+}
+
+.chat-icon:hover {
+    background-color: #0056b3;
+}
+.chat-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.chat-modal-close {
+    cursor: pointer;
+    font-size: 20px;
+    color: #888;
+}
+
+.chat-modal-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    border-bottom: 1px solid #ccc;
+}
+
+.chat-modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.chat-modal-input {
+    width: 100%;
+    padding: 5px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    font-size: 20px;
+}
+
+.chat-modal-send {
+    padding: 8px 12px;
+    background-color: #303030;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.chat-modal-send:hover {
+    background-color: #b49eb9;
+}
+</style>
+
+<!-- Chat Icon -->
+<button class="chat-icon" id="chatIcon" onclick="openChat()">
+    <img id="chat-icon-img" src="{{ url_for('static', filename='images/aira.gif') }}" alt="Chat Icon" class="chat-gif">
+</button>
+
+<!-- Chat Modal -->
+<div class="chat-modal" id="chatModal" style="display: none;">
+    <div class="chat-modal-header">
+        <span>Talk to AIRA</span>
+        <button class="chat-modal-close" id="closeChatBtn" aria-label="Close chat">×</button>
+    </div>
+    <div class="chat-modal-content" id="chatContent">
+        <!-- Chat content will appear here -->
+    </div>
+    <div class="chat-modal-footer">
+        <input type="text" id="chatInput" class="chat-modal-input" placeholder="Ask AIRA a question..." aria-label="Chat input">
+    </div>
+</div>
+<script>
+    // GIF Rolling Logic
+    let currentGifIndex = 0;
+    const gifs = [
+        '{{ url_for("static", filename="images/aira.gif") }}',
+        '{{ url_for("static", filename="images/aira2.gif") }}',
+        '{{ url_for("static", filename="images/aira3.gif") }}'
+    ];
+
+    function rollGifs() {
+        const chatIconImg = document.getElementById('chat-icon-img');
+        if (chatIconImg) {
+            chatIconImg.src = gifs[currentGifIndex];
+            currentGifIndex = (currentGifIndex + 1) % gifs.length;
+        }
+    }
+    setInterval(rollGifs, 2000);
+
+    // Chat Modal Logic
+    const chatModal = document.getElementById('chatModal');
+    const chatContent = document.getElementById('chatContent');
+    const chatInput = document.getElementById('chatInput');
+    const closeChatBtn = document.getElementById('closeChatBtn');
+
+    // In-memory chat history (only persists during the session)
+    let chatHistory = [];
+
+    function openChat() {
+        if (!chatModal || !chatContent) {
+            console.error('Chat modal or content area is missing.');
+            return;
+        }
+
+        // Display the chat modal
+        chatModal.style.display = 'flex';
+        chatContent.innerHTML = ''; // Clear existing content
+
+        // Populate the chat content with in-memory chat history
+        chatHistory.forEach(({ sender, text, type }) => appendMessage(sender, text, type));
+    }
+
+    function closeChat() {
+        if (chatModal) {
+            chatModal.style.display = 'none';
+        }
+    }
+
+    function sendMessage() {
+        const message = chatInput.value.trim();
+        if (!message) return;
+
+        appendMessage("You", message, "user");
+        chatInput.value = ''; // Clear the input field
+
+        fetch('/process_chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data && data.response) {
+                appendMessage("AIRA", data.response, "aira");
+            } else {
+                appendMessage("AIRA", "No response received.", "aira");
+            }
+        })
+        .catch(error => {
+            console.error("Error sending message:", error);
+            appendMessage("AIRA", "Error in communication. Please try again later.", "aira");
+        });
+    }
+
+    function appendMessage(sender, text, type) {
+        const messageWrapper = document.createElement('div');
+        messageWrapper.classList.add('chat-message', type);
+
+        const messageDiv = document.createElement('div');
+        messageDiv.classList.add('chat-bubble', type);
+
+        const textWithLinks = text.replace(/(https?:\/\/[^\s]+|\/incident\/\d+|\/map)/g, (url) => {
+    const fullUrl = url.startsWith('/') ? window.location.origin + url : url;
+    return `<a href="${fullUrl}" target="_blank" style="color: blue; text-decoration: underline;">${url}</a>`;
+});
+
+        messageDiv.innerHTML = `<strong>${sender}:</strong> ${textWithLinks}`;
+        messageWrapper.appendChild(messageDiv);
+        chatContent.appendChild(messageWrapper);
+
+        chatContent.scrollTop = chatContent.scrollHeight; // Auto-scroll
+
+        // Add message to in-memory chat history
+        chatHistory.push({ sender, text, type });
+    }
+
+    // Event Listeners
+    document.getElementById('chatIcon').addEventListener('click', openChat);
+    closeChatBtn.addEventListener('click', closeChat);
+    chatInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            sendMessage();
+        }
+    });
+</script>

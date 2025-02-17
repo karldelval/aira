@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Messages</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>     <style>
+    /* Global reset and basic styling */
+* {
+ margin: 0;
+ padding: 0;
+ box-sizing: border-box;
+ font-family: 'Roboto', sans-serif;
+}
+
+body {
+ background-color: #f4f4f9;
+ color: #333;
+}
+
+ /* Main Message container */
+ .message-container {
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+/* Message list styles */
+.messages-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    overflow-y: auto;
+    max-height: 600px;
+}
+
+.message-card {
+    background-color: #f9f9f9;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.message-card.unread {
+    background-color: #f0f5f5;
+    border-left: 4px solid #f7fdfd;
+}
+
+.message-card.read {
+    background-color: #f9f9f9;
+    border-left: 4px solid #b0bec5;
+}
+
+.message-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9em;
+    color: #555;
+}
+
+.message-body {
+    font-size: 1em;
+    line-height: 1.6;
+    color: #333;
+}
+
+.message-footer {
+    display: flex;
+    justify-content: flex-end;
+    font-size: 0.8em;
+    color: #888;
+}
+
+.status {
+    font-weight: bold;
+}
+
+.read-status {
+    color: green;
+}
+
+.unread-status {
+    color: red;
+}
+
+/* No messages found */
+.no-messages {
+    text-align: center;
+    font-size: 1.2em;
+    color: #999;
+}
+/* Header styles */
+.header {
+ display: flex;
+ justify-content: space-between;
+ align-items: center;
+ background-color: #000000;
+ padding: 10px 20px;
+ color: white;
+ box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.header-logo img {
+ height: 40px;
+ margin-right: 10px;
+}
+
+.header-title {
+ font-size: 1.2em;
+ font-weight: bold;
+}
+
+/* Navigation menu styles */
+.menu-bar {
+ display: flex;
+ gap: 15px;
+}
+
+.menu-bar a {
+ color: white;
+ text-decoration: none;
+ font-weight: bold;
+ transition: color 0.3s;
+}
+
+.menu-bar a:hover {
+ color: #FFD700;
+}
+
+.hamburger {
+ display: none;
+ flex-direction: column;
+ cursor: pointer;
+ gap: 5px;
+}
+
+.hamburger div {
+ width: 25px;
+ height: 3px;
+ background-color: white;
+ border-radius: 2px;
+}
+
+/* Center the form container */
+.container {
+ margin: 20px auto;
+ padding: 20px;
+ max-width: 600px;
+ background-color: #777790;
+ border-radius: 10px;
+ box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+ text-align: center;
+}
+
+/* Center and resize logo */
+.container img {
+ width: 300px;
+ height: 340px;
+ margin: 0 auto 1px;
+ display: block;
+}
+
+/* Form styles */
+h1 {
+ text-align: center;
+ margin-bottom: 20px;
+ font-size: 1.8em;
+ color: #333;
+}
+
+textarea {
+ width: 100%;
+ height: 150px; /* Larger text area */
+ margin: 15px 0;
+ padding: 12px;
+ font-size: 1em;
+ border: 1px solid #ccc;
+ border-radius: 8px;
+ resize: vertical;
+ box-shadow: inset 0px 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* File input */
+input[type="file"] {
+ margin: 10px 0 20px;
+}
+
+/* Buttons styling */
+button {
+ background-color: #534f70; /* Nice purple shade */
+ color: white;
+ border: none;
+ border-radius: 5px;
+ padding: 12px;
+ font-size: 1em;
+ width: 50%;
+ cursor: pointer;
+ transition: background-color 0.3s ease;
+}
+
+button:hover {
+ background-color: #7e6a87; /* Slightly lighter purple */
+}
+
+#mic-btn {
+ background-color: #553c65; /* Green button for mic */
+ margin-bottom: 15px;
+}
+
+#mic-btn:hover {
+ background-color: #45a049;
+}
+/* Example CSS to style error messages in red */
+.error {
+ color: red;
+ font-weight: bold;
+ background-color: #f8d7da;
+ border: 1px solid #f5c6cb;
+ padding: 10px;
+ border-radius: 5px;
+}
+/* Responsive adjustments */
+@media (max-width: 768px) {
+ .menu-bar {
+     display: none;
+     flex-direction: column;
+     background-color: #000;
+     position: absolute;
+     top: 60px;
+     right: 0;
+     width: 100%;
+     text-align: center;
+     gap: 10px;
+ }
+
+ .menu-bar a {
+     display: block;
+     padding: 10px;
+ }
+
+ .hamburger {
+     display: flex;
+ }
+
+ .menu-bar.active {
+     display: flex;
+ }
+
+ .container {
+     padding: 20px;
+ }
+
+}
+ </style>
+<body>
+    {% include 'homeheader.html' %}
+    
+    <div class="message-container">
+        <header>
+            <h1>Your Messages</h1>
+        </header>
+        
+        <section class="messages-list">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="message-card {{ 'unread' if not message.is_read else 'read' }}">
+                        <div class="message-header">
+                            <strong>{{ message.sender.first_name }} {{ message.sender.last_name }}</strong>
+                            <small>{{ message.timestamp.strftime('%b %d, %Y at %H:%M') }}</small>
+                        </div>
+                        <p class="message-body">{{ message.message }}</p>
+                        <div class="message-footer">
+                            <span class="status">
+                                {% if message.is_read %}
+                                    <span class="read-status">Read</span>
+                                {% else %}
+                                    <span class="unread-status">Unread</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-messages">
+                    <p>No messages found.</p>
+                </div>
+            {% endif %}
+        </section>
+
+        <footer> <br><br>
+            
+            <a href="{{ url_for('home') }}" class="home-link">Back to Home</a>
+        </footer>
+    </div>
+
+    <script>        const fetchSession = async () => {
+        try {
+            const response = await fetch('/session');
+            const data = await response.json();
+            const loginLink = document.getElementById('login-link');
+            const changePasswordLink = document.createElement('a');
+    
+            if (data.logged_in) {
+                // Update the login link to logout
+                loginLink.innerText = 'Logout';
+                loginLink.href = '/logout';
+    
+                changePasswordLink.href = '/change_password';
+                changePasswordLink.innerText = 'Change Password';
+                menuBar.appendChild(changePasswordLink);
+    
+    
+            } else {
+                // Ensure it shows Login if not logged in
+                loginLink.innerText = 'Login';
+                loginLink.href = '/login';
+            }
+        } catch (error) {
+            console.error("Error fetching session data:", error);
+        }
+    };
+    
+    // Call fetchSession when the page loads
+    window.onload = fetchSession;</script>
+</body> 
+</html>

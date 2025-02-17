@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIRA COMMAND CENTER</title>
+    <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css' rel='stylesheet' />
+    
+    <style>
+        :root {
+            --primary-bg: #1a1a1a;
+            --secondary-bg: #2d2d2d;
+            --accent-color: #00ff88;
+            --urgent-color: #ff4444;
+            --warning-color: #ffbb33;
+            --text-color: #ffffff;
+            --border-radius: 8px;
+            --sidebar-width: 400px;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--primary-bg);
+            color: var(--text-color);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .dashboard-container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 60px);
+            width: 100%;
+        }
+
+        /* Summary Stats Section */
+        .summary-stats {
+            padding: 10px 20px;
+            background-color: var(--secondary-bg);
+            display: flex;
+            gap: 15px;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
+        .stat-box {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 15px;
+            border-radius: var(--border-radius);
+            flex: 0 0 auto;
+        }
+
+        .stat-box h4 {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--accent-color);
+        }
+
+        .stat-box p {
+            margin: 5px 0 0 0;
+            font-size: 1.2rem;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            display: flex;
+            flex: 1;
+            height: calc(100% - 100px); /* Adjust for summary stats */
+            overflow: hidden;
+        }
+
+        /* Map Section */
+        .map-section {
+            flex: 1;
+            position: relative;
+            height: 100%;
+            background: var(--secondary-bg);
+        }
+
+        #map-container {
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+
+        #map-2d, #map-3d {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #map-3d {
+            display: none;
+        }
+
+        .sidebar-header {
+    padding: 15px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-header h3 {
+    margin: 0 0 10px 0;
+    color: var(--accent-color);
+}
+
+.sidebar-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.btn-sm {
+    padding: 5px 15px;
+    font-size: 0.9rem;
+    min-width: 100px;
+    background-color: rgba(73, 33, 92, 0.2);
+    color: rgba(255, 255, 255, 0.8);
+
+}
+
+        /* Sidebar */
+        .incident-sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--secondary-bg);
+            height: 100%;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-header {
+            padding: 15px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .incident-item {
+            background: rgba(255, 255, 255, 0.05);
+            margin-bottom: 10px;
+            padding: 15px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .incident-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .incident-item.selected {
+            background: rgba(0, 255, 136, 0.1);
+            border-left: 4px solid var(--accent-color);
+        }
+
+        .incident-item.urgent {
+            border-left: 4px solid var(--urgent-color);
+        }
+
+        .incident-item.warning {
+            border-left: 4px solid var(--warning-color);
+        }
+
+        .incident-item h4 {
+            margin: 0 0 10px 0;
+            color: var(--accent-color);
+        }
+
+        .incident-item p {
+            margin: 5px 0;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        /* Map Controls */
+        .map-controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: rgba(45, 45, 45, 0.9);
+            padding: 10px;
+            border-radius: var(--border-radius);
+        }
+
+        .view-toggle {
+            background: var(--secondary-bg);
+            color: var(--text-color);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .view-toggle:hover {
+            background: var(--accent-color);
+            color: var(--primary-bg);
+        }
+
+        .view-toggle.active {
+            background: var(--accent-color);
+            color: var(--primary-bg);
+        }
+
+        .map-style-control {
+            position: absolute;
+            top: 60px;
+            left: 10px;
+            z-index: 1000;
+            background: rgba(45, 45, 45, 0.9);
+            padding: 10px;
+            border-radius: var(--border-radius);
+            display: none;
+        }
+
+        .style-button {
+            display: block;
+            width: 100%;
+            margin: 5px 0;
+            padding: 8px 16px;
+            background: var(--secondary-bg);
+            color: var(--text-color);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .style-button:hover {
+            background: var(--accent-color);
+            color: var(--primary-bg);
+        }
+
+        .style-button.active {
+            background: var(--accent-color);
+            color: var(--primary-bg);
+        }
+
+        /* Weather Alerts */
+        .weather-alerts {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 300px;
+            max-height: 200px;
+            overflow-y: auto;
+            background: rgba(45, 45, 45, 0.9);
+            border-radius: var(--border-radius);
+            padding: 15px;
+            z-index: 1000;
+        }
+
+        .alert-item {
+            padding: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .incident-sidebar {
+                width: 300px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-container {
+                height: auto;
+            }
+
+            .main-content {
+                flex-direction: column;
+                height: auto;
+            }
+
+            .incident-sidebar {
+                width: 100%;
+                height: 300px;
+            }
+
+            .map-section {
+                height: 500px;
+            }
+        }
+    </style> <style> .marker-dot {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 2px solid white;
+        box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    }
+    .marker-dot.urgent {
+        background-color: #ff4444;
+        animation: pulse 1.5s infinite;
+    }
+    .marker-dot.warning {
+        background-color: #ffbb33;
+    }
+    .marker-dot.normal {
+        background-color: #00ff88;
+    }
+    @keyframes pulse {
+        0% {
+            transform: scale(1);
+            opacity: 1;
+        }
+        50% {
+            transform: scale(1.2);
+            opacity: 0.8;
+        }
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }</style>
+
+    {% include "chatbase.html" %}
+</head>
+<body>
+    {% include 'header.html' %}
+
+    <div class="dashboard-container">
+        <!-- Summary Stats -->
+        <div class="summary-stats">
+            <div class="stat-box urgent">
+                <h4>Urgent Incidents</h4>
+                <p>{{ urgent_count }}</p>
+            </div>
+            <div class="stat-box warning">
+                <h4>Warning Incidents</h4>
+                <p>{{ warning_count }}</p>
+            </div>
+            <div class="stat-box">
+                <h4>Today vs Yesterday</h4>
+                <p>{{ incidents_today }} / {{ incidents_yesterday }}</p>
+            </div>
+            <div class="stat-box">
+                <h4>Responses Today</h4>
+                <p>{{ responses_today }}</p>
+            </div>
+            <div class="stat-box">
+                <h4>Top Category</h4>
+                <p>{{ top_category_today }}</p>
+            </div>
+            <div class="stat-box">
+                <h4>Total Surveys</h4>
+                <p>{{ survey_count }}</p>
+            </div>
+            <div class="stat-box">
+                <h4>Total Responses</h4>
+                <p>{{ response_count }}</p>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <!-- Map Section -->
+            <div class="map-section">
+                <div id="map-container">
+                    <div id="map-2d"></div>
+                    <div id="map-3d"></div>
+                    <div class="map-controls">
+                        <button class="view-toggle active" id="2d-view">2D View</button>
+                        <button class="view-toggle" id="3d-view">3D View</button>
+                    </div>
+                    <div class="map-style-control" id="style-controls">
+                        <button class="style-button" data-style="mapbox://styles/mapbox/streets-v12">Streets</button>
+                        <button class="style-button" data-style="mapbox://styles/mapbox/outdoors-v12">Outdoors</button>
+                        <button class="style-button" data-style="mapbox://styles/mapbox/light-v11">Light</button>
+                        <button class="style-button" data-style="mapbox://styles/mapbox/dark-v11">Dark</button>
+                        <button class="style-button" data-style="mapbox://styles/mapbox/satellite-v9">Satellite</button>
+                        <button class="style-button" data-style="mapbox://styles/mapbox/satellite-streets-v12">Satellite Streets</button>
+                        <button class="style-button" data-style="mapbox://styles/mapbox/navigation-day-v1">Navigation Day</button>
+                        <button class="style-button" data-style="mapbox://styles/mapbox/navigation-night-v1">Navigation Night</button>
+                    </div>
+                </div>
+
+                <div class="weather-alerts">
+                    <h3>Weather Alerts</h3>
+                    <div id="weather-alerts">
+                        <p>Loading alerts...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Incident Sidebar -->
+            <div class="incident-sidebar">
+                <div class="sidebar-header">
+                    <h3>Recent Incidents</h3>
+                    <div class="sidebar-actions">
+                        <div class="sidebar-actions">
+                            <a href="{{ url_for('dispatch') }}" class="btn btn-sm" style="color: white;">Create</a>
+                            <a href="{{ url_for('reports') }}" class="btn btn-sm" style="color: white;">Browse</a>
+                            <a href="{{ url_for('incident_analysis') }}" class="btn btn-sm" style="color: white;">Analyze</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="sidebar-content" id="incidentBox">
+                    <!-- Incidents will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js'></script>
+    
+    <script>
+        // Your existing map initialization code
+        let map2D, map3D;
+        let markers = [];
+        let currentView = '2d';
+        const CENTER_LAT = 14.6098153;
+        const CENTER_LNG = 121.0418842;
+        const ZOOM_LEVEL = 13;
+
+        function initMaps() {
+            // Create maps but don't initialize them yet
+            map2D = L.map('map-2d', {
+                preferCanvas: true,
+                wheelDebounceTime: 150
+            });
+            
+            // Add tile layer
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map2D);
+
+            // Initialize 3D map
+            mapboxgl.accessToken = 'pk.eyJ1IjoiamFzb25jZGVsYXJvc2EiLCJhIjoiY202MGd4ZXNyMDF2MDJpcTR4aHhqMGNvOSJ9.SVKcekxHU0w8-6AoRp9K9A';
+            map3D = new mapboxgl.Map({
+                container: 'map-3d',
+                style: 'mapbox://styles/mapbox/streets-v12',
+                center: [CENTER_LNG, CENTER_LAT],
+                zoom: ZOOM_LEVEL,
+                pitch: 45,
+                bearing: -17.6
+            });
+
+            // Add navigation controls to 3D map
+    map3D.addControl(new mapboxgl.NavigationControl({ 
+        showCompass: true, 
+        showZoom: true,
+        visualizePitch: true
+    }), 'top-right');
+
+            // Function to properly size and initialize maps
+            function initializeMapSize() {
+                map2D.invalidateSize(true);
+                map3D.resize();
+                
+                // Set view for 2D map after size is updated
+                map2D.setView([CENTER_LAT, CENTER_LNG], ZOOM_LEVEL);
+            }
+
+            // Initialize size
+            initializeMapSize();
+            setTimeout(initializeMapSize, 100);
+
+            // Add resize handlers
+            window.addEventListener('resize', initializeMapSize);
+            
+            // Add observer for container size changes
+            const resizeObserver = new ResizeObserver(() => {
+                initializeMapSize();
+            });
+
+            // Observe both map containers
+            resizeObserver.observe(document.getElementById('map-2d'));
+            resizeObserver.observe(document.getElementById('map-3d'));
+
+            // Load existing markers when maps are ready
+            map3D.on('load', () => {
+                setupMap3DFeatures();
+                fetchAndDisplayIncidents();
+            });
+        }
+
+        function initIncidentStreaming() {
+    const incidentBox = document.getElementById("incidentBox");
+    if (!incidentBox) {
+        console.error("Incident box not found in DOM");
+        return;
+    }
+
+    // Clear any existing content
+    incidentBox.innerHTML = '<div class="loading">Loading incidents...</div>';
+
+    // Start the incident streaming
+    fetchAndAppendIncidents();
+}
+
+       // Constants for the streaming functionality
+const STREAM_API_URL = "/api/recent_incidents";
+const REFRESH_INTERVAL = 10000; // 10 seconds
+
+// Track existing incidents to avoid duplicates
+let incidentIds = new Set();
+
+// High-risk words in English and Tagalog
+const HIGH_RISK_WORDS = [
+    // English words
+    'fire', 'murder', 'kill', 'dying', 'help me', 'terror','crime', 'suicide', 
+    'emergency', 'danger', 'threat', 'attack', 'harm', 'violence',  'dead',
+    'abuse', 'rape', 'assault', 'kidnap', 'hostage', 'critical', 'urgent',
+    
+    // Tagalog words
+    'tulong', 'karahasan', 'pagpatay', 'pagsunog', 'bangis', 'krimen', 
+    'peligro', 'takot', 'trauma', 'pinsala', 'sakitan', 'patay', 
+    'masaktan', 'emergency', 'panganib', 'pagdurusa', 'nasusunog', 
+    'naghihirap', 'kasalukuyang nangyayari'
+];
+
+function checkHighRiskWords(text) {
+    if (!text) return false;
+    
+    // Convert text to lowercase for case-insensitive matching
+    const lowercaseText = text.toLowerCase();
+    
+    // Check if any high-risk word is present in the text
+    return HIGH_RISK_WORDS.some(word => lowercaseText.includes(word.toLowerCase()));
+}
+
+async function fetchAndAppendIncidents() {
+    try {
+        const response = await fetch(STREAM_API_URL);
+        const incidents = await response.json();
+        
+        // Debug log
+        console.log("Received incidents:", incidents);
+
+        const incidentBox = document.getElementById("incidentBox");
+        
+        incidents.forEach(incident => {
+            if (!incidentIds.has(incident.id)) {
+                incidentIds.add(incident.id);
+
+                // Check for high-risk content
+                const isHighRisk = checkHighRiskWords(incident.category) || 
+                                   checkHighRiskWords(incident.report_text);
+
+                const incidentItem = document.createElement('div');
+                incidentItem.className = 'incident-item';
+                
+                // Apply high-risk styling if necessary
+                if (isHighRisk) {
+                    incidentItem.style.backgroundColor = 'rgba(255, 0, 0, 0.1)'; // Light red background
+                    incidentItem.style.border = '1px solid rgba(255, 0, 0, 0.3)';
+                }
+
+                // Debugging: Log entire incident object
+                console.log("Full incident object:", incident);
+
+                let formattedTime = "Timestamp not available";
+                if (incident.timestamp) {
+                    const cleanedTimestamp = incident.timestamp.replace(" ", "T"); // Convert to ISO format
+                    const parsedDate = new Date(cleanedTimestamp);
+                    formattedTime = isNaN(parsedDate) ? "Invalid date" : parsedDate.toLocaleString();
+                }
+
+                // Create emergency icon for high-risk incidents
+                const emergencyIcon = isHighRisk 
+                    ? '<span style="margin-right: 10px; color: yellow;" title="High-Risk Incident">⚠️</span>' 
+                    : '';
+
+                // Determine text color for high-risk content
+                const textStyle = isHighRisk 
+                    ? 'style="color: yellow;"' 
+                    : '';
+
+                incidentItem.innerHTML = `
+                    <h4 ${textStyle}>
+                        ${emergencyIcon}${incident.category || 'Uncategorized'}
+                    </h4>
+                    <p>
+                        <a href="/incident/${incident.id}" 
+                           style="color: inherit; text-decoration: none;" 
+                           ${textStyle}>
+                            ${incident.report_text}
+                        </a>
+                    </p>
+                    <p ${textStyle}><strong>Location:</strong> ${incident.location || 'Location not specified'}</p>
+                    <p><small>${getRelativeTime(incident.timestamp)}</small></p>
+                `;
+
+                incidentItem.addEventListener('click', () => {
+                    // Your existing click handler code
+                });
+
+                // If it's a high-risk incident, scroll to top and potentially trigger an alert
+                if (isHighRisk) {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    
+                    // Optional: Additional high-priority notification
+                    try {
+                        if ('Notification' in window && Notification.permission === 'granted') {
+                            new Notification('High-Risk Incident Detected', {
+                                body: `${incident.category || 'Incident'} at ${incident.location || 'Unknown Location'}`,
+                                icon: '/path/to/warning-icon.png' // Replace with actual path
+                            });
+                        }
+                    } catch (notificationError) {
+                        console.warn('Notification failed:', notificationError);
+                    }
+                }
+
+                incidentBox.insertBefore(incidentItem, incidentBox.firstChild);
+            }
+        });
+
+    } catch (error) {
+        console.error("Error fetching incidents:", error);
+    }
+}
+
+function getRelativeTime(timestamp) {
+    if (!timestamp) return "Unknown time";
+
+    const now = new Date();
+    const past = new Date(timestamp.replace(" ", "T")); // Ensure valid format
+    const diffMs = now - past; // Difference in milliseconds
+
+    if (isNaN(diffMs)) return "Invalid date";
+
+    const diffSeconds = Math.floor(diffMs / 1000);
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    const diffHours = Math.floor(diffMinutes / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffSeconds < 60) return `${diffSeconds} seconds ago`;
+    if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
+
+    return `${Math.floor(diffDays / 365)} years ago`;
+}
+
+
+function createMarker(incident) {
+    if (!incident.latitude || !incident.longitude) return null;
+
+    if (currentView === '2d' && map2D) {
+        // Create custom icon based on incident priority
+        const icon = L.divIcon({
+            className: 'custom-marker',
+            html: `<div class="marker-dot ${incident.priority || 'normal'}"></div>`,
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+        });
+
+        const marker = L.marker([incident.latitude, incident.longitude], { icon });
+        marker.incident = incident;
+        
+        // Create and bind popup
+        const popup = L.popup().setContent(createPopupContent(incident));
+        marker.bindPopup(popup);
+        
+        marker.addTo(map2D);
+        return marker;
+    } 
+    else if (currentView === '3d' && map3D) {
+        // Create custom element for 3D marker
+        const el = document.createElement('div');
+        el.className = `custom-marker-3d ${incident.priority || 'normal'}`;
+        
+        // Style the marker based on priority
+        const color = incident.priority === 'urgent' ? '#ff4444' : 
+                     incident.priority === 'warning' ? '#ffbb33' : 
+                     '#00ff88';
+        
+        el.style.cssText = `
+            width: 30px;
+            height: 30px;
+            background-color: ${color};
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            cursor: pointer;
+        `;
+
+        const marker = new mapboxgl.Marker(el)
+            .setLngLat([incident.longitude, incident.latitude])
+            .setPopup(new mapboxgl.Popup({ offset: [0, -15] })
+                .setHTML(createPopupContent(incident)));
+        
+        marker.incident = incident;
+        marker.addTo(map3D);
+        return marker;
+    }
+    return null;
+}
+
+
+        function highlightIncidentInSidebar(incidentId) {
+            document.querySelectorAll('.incident-item').forEach(item => {
+                const itemLink = item.querySelector('a');
+                if (itemLink && itemLink.href.endsWith(`/${incidentId}`)) {
+                    item.classList.add('selected');
+                    item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+        }
+
+        function createPopupContent(incident) {
+    return `
+        <div class="popup-content">
+            <h4 style="color: ${
+                incident.priority === 'urgent' ? '#ff4444' : 
+                incident.priority === 'warning' ? '#ffbb33' : 
+                '#00ff88'
+            };">${incident.category || 'Uncategorized'}</h4>
+           <p style="color: #000000;">${incident.report_text}</p>
+            <p style="color: #000000;"><strong>Location:</strong> ${incident.location || 'Location not specified'}</p>
+            <p style="color: #000000;"><strong>Time:</strong> ${new Date(incident.timestamp).toLocaleString()}</p>
+            ${incident.media_path ? `
+                <div class="popup-media">
+                    ${incident.media_path.match(/\.(jpg|jpeg|png|gif)$/i) ?
+                        `<img src="${incident.media_path}" alt="Incident Image" style="max-width: 200px;">` :
+                        incident.media_path.match(/\.(mp4|webm|ogg)$/i) ?
+                        `<video width="200" controls><source src="${incident.media_path}" type="video/${incident.media_path.split('.').pop()}"></video>` :
+                        ''
+                    }
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+        function setupMap3DFeatures() {
+            if (!map3D) return;
+
+            try {
+                // Add 3D buildings
+                map3D.addLayer({
+                    'id': '3d-buildings',
+                    'source': 'composite',
+                    'source-layer': 'building',
+                    'filter': ['==', 'extrude', 'true'],
+                    'type': 'fill-extrusion',
+                    'minzoom': 15,
+                    'paint': {
+                        'fill-extrusion-color': '#aaa',
+                        'fill-extrusion-height': [
+                            'interpolate', ['linear'], ['zoom'],
+                            15, 0,
+                            15.05, ['get', 'height']
+                        ],
+                        'fill-extrusion-base': [
+                            'interpolate', ['linear'], ['zoom'],
+                            15, 0,
+                            15.05, ['get', 'min_height']
+                        ],
+                        'fill-extrusion-opacity': 0.6
+                    }
+                });
+
+                // Add terrain
+                map3D.addSource('mapbox-dem', {
+                    'type': 'raster-dem',
+                    'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+                    'tileSize': 512,
+                    'maxzoom': 14
+                });
+                
+                map3D.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.5 });
+
+                // Add sky layer
+                map3D.addLayer({
+                    'id': 'sky',
+                    'type': 'sky',
+                    'paint': {
+                        'sky-type': 'atmosphere',
+                        'sky-atmosphere-sun': [0.0, 90.0],
+                        'sky-atmosphere-sun-intensity': 15
+                    }
+                });
+            } catch (e) {
+                console.warn('Some 3D features could not be added:', e);
+            }
+        }
+
+        function toggleMapView(viewType) {
+            const map2DElement = document.getElementById('map-2d');
+            const map3DElement = document.getElementById('map-3d');
+            const styleControls = document.getElementById('style-controls');
+
+            document.querySelectorAll('.view-toggle').forEach(btn => 
+                btn.classList.remove('active')
+            );
+
+            currentView = viewType;
+            
+            if (viewType === '2d') {
+                document.getElementById('2d-view').classList.add('active');
+                map2DElement.style.display = 'block';
+                map3DElement.style.display = 'none';
+                styleControls.style.display = 'none';
+                map2D.invalidateSize();
+                fetchAndDisplayIncidents();
+            } else {
+                document.getElementById('3d-view').classList.add('active');
+                map2DElement.style.display = 'none';
+                map3DElement.style.display = 'block';
+                styleControls.style.display = 'block';
+                map3D.resize();
+                fetchAndDisplayIncidents();
+            }
+        }
+
+        // Initialize everything when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            initMaps();
+            
+            fetchAndAppendIncidents();
+
+// Set up periodic updates
+setInterval(fetchAndAppendIncidents, REFRESH_INTERVAL);
+
+// Debug logging
+console.log('Incident streaming initialized');
+
+            // Set up view toggle listeners
+            document.getElementById('2d-view').addEventListener('click', () => 
+                toggleMapView('2d')
+            );
+            document.getElementById('3d-view').addEventListener('click', () => 
+                toggleMapView('3d')
+            );
+
+            // Set up map style controls
+            document.querySelectorAll('.style-button').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const style = e.target.dataset.style;
+                    if (map3D) {
+                        map3D.setStyle(style);
+                        document.querySelectorAll('.style-button').forEach(btn => 
+                            btn.classList.remove('active')
+                        );
+                        e.target.classList.add('active');
+                    }
+                });
+            });
+
+            // Start fetching incidents
+            fetchAndDisplayIncidents();
+            setInterval(fetchAndDisplayIncidents, 10000);
+
+            // Load weather alerts
+            fetchWeatherAlerts();
+
+        });
+
+
+        function fetchAndDisplayIncidents() {
+    try {
+        const url = '/map_data';
+        const params = new URLSearchParams();
+        const today = new Date().toISOString().split('T')[0];
+        
+        params.append('start_date', today);
+        params.append('end_date', today);
+
+        clearMarkers();
+
+        fetch(`${url}?${params.toString()}`)
+            .then(response => response.json())
+            .then(incidents => {
+                if (incidents && incidents.length > 0) {
+                    incidents.forEach(incident => {
+                        if (incident.latitude && incident.longitude) {
+                            const marker = createMarker(incident);
+                            if (marker) {
+                                markers.push({ 
+                                    incident: incident, 
+                                    marker: marker, 
+                                    type: currentView 
+                                });
+                            }
+                        }
+                    });
+
+                    // Fit bounds if we have markers
+                    if (markers.length > 0) {
+                        fitBoundsToMarkers();
+                    }
+                }
+            })
+            .catch(err => console.error("Error fetching incidents:", err));
+    } catch (error) {
+        console.error("Error in fetchAndDisplayIncidents:", error);
+    }
+}
+
+function fitBoundsToMarkers() {
+    if (currentView === '2d' && map2D && markers.length > 0) {
+        const bounds = L.latLngBounds();
+        markers.forEach(m => {
+            if (m.incident && m.incident.latitude && m.incident.longitude) {
+                bounds.extend([m.incident.latitude, m.incident.longitude]);
+            }
+        });
+        map2D.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+    } 
+    else if (currentView === '3d' && map3D && markers.length > 0) {
+        const bounds = new mapboxgl.LngLatBounds();
+        markers.forEach(m => {
+            if (m.incident && m.incident.latitude && m.incident.longitude) {
+                bounds.extend([m.incident.longitude, m.incident.latitude]);
+            }
+        });
+        map3D.fitBounds(bounds, { padding: 50, maxZoom: 15 });
+    }
+}
+
+        // Weather alerts handling
+        function fetchWeatherAlerts() {
+            const alertsContainer = document.getElementById("weather-alerts");
+            
+            fetch('/api/alerts')
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to fetch weather alerts');
+                    return response.json();
+                })
+                .then(alerts => {
+                    alertsContainer.innerHTML = alerts.length ? '' : 
+                        '<p>No weather alerts at the moment.</p>';
+
+                    alerts.forEach(alert => {
+                        const alertDiv = document.createElement('div');
+                        alertDiv.className = 'alert-item';
+                        alertDiv.innerHTML = `
+                            <h4>${alert.alertType}: ${alert.messageType}</h4>
+                            <p>${alert.message}</p>
+                            <p><strong>Region:</strong> ${alert.region}</p>
+                            <p><strong>Effectivity:</strong> 
+                                ${new Date(alert.effectivity).toLocaleString()}</p>
+                        `;
+                        alertsContainer.appendChild(alertDiv);
+                    });
+                })
+                .catch(error => {
+                    alertsContainer.innerHTML = 
+                        `<p>Error loading weather alerts: ${error.message}</p>`;
+                });
+        }
+    </script>
+    <script>function clearMarkers() {
+        markers.forEach(markerData => {
+            if (markerData.marker) {
+                if (currentView === '2d' && markerData.marker.remove) {
+                    markerData.marker.remove();
+                } else if (currentView === '3d' && markerData.marker.remove) {
+                    markerData.marker.remove();
+                }
+            }
+        });
+        markers = [];
+    }</script>
+</body>
+</html>

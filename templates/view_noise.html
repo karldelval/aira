@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Noise Data</title>
+</head>
+<body>
+    <h1>Noise Data</h1>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Sensor ID</th>
+                <th>Sensor Type</th>
+                <th>Value</th>
+                <th>Timestamp</th>
+                <th>Notes</th>
+                <th>Other Data</th>
+                <th>Longitude</th>
+                <th>Latitude</th>
+                <th>Average Noise</th>
+                <th>Max Noise</th>
+                <th>Min Noise</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in noise_data %}
+            <tr>
+                <td>{{ row.sensor_id }}</td>
+                <td>{{ row.sensor_type }}</td>
+                <td>{{ row.value }}</td>
+                <td>{{ row.timestamp }}</td>
+                <td>{{ row.notes }}</td>
+                <td>{{ row.other_data }}</td>
+                <td>{{ row.longitude }}</td>
+                <td>{{ row.latitude }}</td>
+                <td>{{ row.averageNoise }}</td>
+                <td>{{ row.maxNoise }}</td>
+                <td>{{ row.MinNoise }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

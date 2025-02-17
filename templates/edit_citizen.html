@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+    <title>Edit Citizen</title>
+    <style>
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+           
+        }
+
+        .form-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 450px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 24px;
+            color: #333;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #555;
+        }
+
+        input {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .form-actions button {
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            flex: 1;
+        }
+
+        .save-btn {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .cancel-btn {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .form-actions button:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+{% include 'header2.html' %}
+<body>
+  
+    <div class="form-container">
+        <h1>Edit Citizen</h1>
+        <form action="{{ url_for('edit_citizen', id=citizen.ID) }}" method="post">
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" value="{{ citizen.NAME }}" required>
+            
+            <label for="address">Address:</label>
+            <input type="text" id="address" name="address" value="{{ citizen.ADDRESS }}" required>
+            
+            <label for="barangay">Barangay:</label>
+            <input type="text" id="barangay" name="barangay" value="{{ citizen.BARANGAY }}" required>
+
+            <label for="precinct">Precinct:</label>
+            <input type="text" id="precinct" name="precinct" value="{{ citizen.PRECINCT }}" required>
+
+            <label for="gender">Gender:</label>
+            <input type="text" id="gender" name="gender" value="{{ citizen.GENDER }}" required>
+
+            <label for="birthday">Birthday:</label>
+            <input type="date" id="birthday" name="birthday" value="{{ citizen.BIRTHDAY }}" required>
+            
+            <label for="latitude">Latitude:</label>
+            <input type="text" id="latitude" name="latitude" value="{{ citizen.latitude }}">
+            
+            <label for="longitude">Longitude:</label>
+            <input type="text" id="longitude" name="longitude" value="{{ citizen.longitude }}">
+            
+            <div class="form-actions">
+                <button type="submit" class="save-btn">Update</button>
+                <button type="button" class="cancel-btn" onclick="window.history.back();">Cancel</button>
+            </div>
+        </form>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Map</title>
+    <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css' rel='stylesheet' />
+    <!-- Add this to your style section -->
+    <style>.custom-category-marker {
+        background-size: cover;
+        width: 32px;
+        height: 32px;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    
+    .custom-category-marker:hover {
+        transform: scale(1.1);
+    }
+    
+    .marker-popup {
+        padding: 10px;
+        width: 100%;  /* Increased width */
+        height: auto;
+        max-height: 300px; /* Reduced height */
+        overflow-y: auto;
+    }
+    
+    .marker-popup h3 {
+        margin: 0 0 10px 0;
+        color: #333;
+        font-size: 16px;
+    }
+    
+    .marker-popup p {
+        margin: 5px 0;
+        color: #666;
+        font-size: 14px;
+    }</style>
+    <style>
+        .mapboxgl-marker {
+            will-change: transform;
+        }
+        
+        .mapboxgl-marker svg {
+            transform-origin: center;
+            pointer-events: auto;
+        }
+        
+        .mapboxgl-popup {
+            z-index: 2;
+        }
+    </style>
+    <style>
+        /* Map Controls for 3D */
+        .mapboxgl-ctrl-group {
+            position: absolute;
+            top: 100px;
+            right: 10px;
+        }
+    
+        /* Zoom Controls for 2D */
+        .leaflet-control-zoom {
+            position: absolute;
+            top: 60px;
+            right: 10px;
+        }
+    </style>
+    <style>
+        #map-container {
+            position: relative;
+            width: 100%;
+            height: 1000px;
+        }
+        #map-2d, #map-3d {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        #map-3d { 
+            display: none; 
+        }
+        .map-controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;  /* Changed from right to left */
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .view-toggle {
+            margin: 5px;
+            padding: 8px 16px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .view-toggle:hover {
+            background: #45a049;
+        }
+        .active {
+            background: #357abd;
+        }
+        .custom-marker {
+            animation: pulse 2s infinite;
+        }
+        .custom-popup {
+            background: rgba(0, 0, 0, 0.8) !important;
+            border-radius: 8px !important;
+            color: white !important;
+            max-width: 1000px !important;
+        }
+        .custom-popup .mapboxgl-popup-content {
+    background: rgba(0, 0, 0, 0.8) !important;
+    color: white !important;
+    padding: 15px !important;
+    border-radius: 8px !important;
+    width: 100% !important;
+    max-height: 500px !important;
+    overflow-y: auto !important;
+}
+
+.custom-popup .mapboxgl-popup-close-button {
+    color: white !important;
+    font-size: 16px !important;
+    padding: 5px 10px !important;
+}
+
+.custom-popup a {
+    color: #4CAF50 !important;
+    text-decoration: none !important;
+}
+
+.custom-popup a:hover {
+    text-decoration: underline !important;
+}
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.1);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        .filters {
+            margin: 20px 0;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            
+        }
+    </style>
+        <style>
+            /* Previous styles remain the same */
+            .map-style-control {
+                position: absolute;
+                top: 60px;
+                left: 10px;
+                z-index: 1000;
+                background: white;
+                padding: 10px;
+                border-radius: 4px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                display: none;
+            }
+            .style-button {
+                display: block;
+                width: 100%;
+                margin: 5px 0;
+                padding: 8px 16px;
+                background: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+            .style-button:hover {
+                background: #45a049;
+            }
+            .style-button.active {
+                background: #357abd;
+            }
+        </style>
+        <style>
+            .filters {
+                background: #fff;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                margin: 20px 0;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 15px;
+            }
+            
+            .filter-group {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                flex: 1;
+                min-width: 200px;
+            }
+            
+            .filter-group label {
+                font-weight: 500;
+                color: #374151;
+                font-size: 14px;
+            }
+            
+            .filter-group input {
+                padding: 10px 15px;
+                border: 1.5px solid #e5e7eb;
+                border-radius: 6px;
+                font-size: 14px;
+                transition: border-color 0.2s;
+            }
+            
+            .filter-group input:focus {
+                outline: none;
+                border-color: #3b82f6;
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            }
+            
+            .filter-group input[type="date"] {
+                padding: 8.5px 15px;
+            }
+            
+            .coordinates-group {
+                display: flex;
+                gap: 10px;
+            }
+            
+            .coordinates-group input {
+                width: calc(50% - 5px);
+            }
+            
+            .btn {
+                padding: 10px 20px;
+                border: none;
+                border-radius: 6px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-size: 14px;
+                height: 40px;
+                align-self: flex-end;
+            }
+            
+            .btn-primary {
+                background-color: #3b82f6;
+                color: white;
+            }
+            
+            .btn-primary:hover {
+                background-color: #2563eb;
+            }
+            
+            .btn-secondary {
+                background-color: #4f46e5;
+                color: white;
+            }
+            
+            .btn-secondary:hover {
+                background-color: #4338ca;
+            }
+            
+            @media (max-width: 768px) {
+                .filter-group {
+                    flex: 100%;
+                }
+                
+                .coordinates-group {
+                    flex-direction: column;
+                }
+                
+                .coordinates-group input {
+                    width: 100%;
+                }
+            }
+            </style>
+</head>{% include "chatbase.html" %}
+<body> {% include 'header.html' %}
+
+    <div class="filters">
+        <!-- Date Filter Group -->
+        <div class="filter-group">
+            <label for="start-date">Start Date</label>
+            <input type="date" id="start-date">
+        </div>
+        
+        <div class="filter-group">
+            <label for="end-date">End Date</label>
+            <input type="date" id="end-date">
+        </div>
+        
+        <div class="filter-group" style="flex: 0 0 auto;">
+            <button id="filter-btn" class="btn btn-primary">Filter Dates</button>
+        </div>
+    
+        <!-- Search Incidents Group -->
+        <div class="filter-group" style="flex: 2 1 300px;">
+            <label for="search-query">Search Incidents</label>
+            <input type="text" id="search-query" placeholder="Enter keywords to search incidents...">
+        </div>
+        
+        <div class="filter-group" style="flex: 0 0 auto;">
+            <button id="search-btn" class="btn btn-primary">Search</button>
+        </div>
+    
+        <!-- Address Search Group -->
+        <div class="filter-group" style="flex: 2 1 300px;">
+            <label for="searchAddress">Location Search</label>
+            <input type="text" id="searchAddress" placeholder="Enter an address to search...">
+        </div>
+        
+        <!-- Coordinates Group -->
+        <div class="filter-group">
+            <label>Coordinates</label>
+            <div class="coordinates-group">
+                <input type="text" id="searchLat" placeholder="Latitude">
+                <input type="text" id="searchLon" placeholder="Longitude">
+            </div>
+        </div>
+        
+        <div class="filter-group" style="flex: 0 0 auto;">
+            <button onclick="searchAddress()" class="btn btn-secondary">Search Location</button>
+        </div>
+    </div>
+
+    <div id="map-container">
+        <div id="map-2d"></div>
+        <div id="map-3d"></div>
+        <div class="map-controls">
+            <button class="view-toggle active" id="2d-view">2D View</button>
+            <button class="view-toggle" id="3d-view">3D View</button>
+        </div>
+        <div class="map-style-control" id="style-controls">
+            <!-- Basic Styles -->
+            <button class="style-button" data-style="mapbox://styles/mapbox/streets-v12">Streets (Latest)</button>
+            <button class="style-button" data-style="mapbox://styles/mapbox/outdoors-v12">Outdoors</button>
+            <button class="style-button" data-style="mapbox://styles/mapbox/light-v11">Light</button>
+            <button class="style-button" data-style="mapbox://styles/mapbox/dark-v11">Dark</button>
+            
+            <!-- Satellite Styles -->
+            <button class="style-button" data-style="mapbox://styles/mapbox/satellite-v9">Satellite</button>
+            <button class="style-button" data-style="mapbox://styles/mapbox/satellite-streets-v12">Satellite Streets</button>
+            
+            <!-- Navigation Styles -->
+            <button class="style-button" data-style="mapbox://styles/mapbox/navigation-day-v1">Navigation Day</button>
+            <button class="style-button" data-style="mapbox://styles/mapbox/navigation-night-v1">Navigation Night</button>
+            
+            <!-- Additional Specialized Styles -->
+            <button class="style-button" data-style="mapbox://styles/mapbox/standard">Standard</button>
+            <button class="style-button" data-style="mapbox://styles/mapbox/streets-v12">Streets</button>
+            <button class="style-button" data-style="mapbox://styles/mapbox/light-v11">Light Modern</button>
+            <button class="style-button" data-style="mapbox://styles/mapbox/dark-v11">Dark Modern</button>
+            
+            <!-- Premium Styles -->
+            <button class="style-button" data-style="mapbox://styles/mapbox/monochrome">Monochrome</button>
+            <button class="style-button" data-style="mapbox://styles/mapbox/traffic-day-v2">Traffic Day</button>
+            <button class="style-button" data-style="mapbox://styles/mapbox/traffic-night-v2">Traffic Night</button>
+            <button class="style-button" data-style="mapbox://styles/mapbox/terrain-v2">3D Terrain</button>
+        </div>
+    </div>
+
+    <div id="incident-details"></div>
+
+    <table id="incident-table" class="incident-table">
+        <thead>
+            <tr>
+                <th>Category</th>
+                <th>Location</th>
+                <th>Timestamp</th>
+                <th>Report</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js'></script>
+   
+    <script>
+        let map2D, map3D;
+  // Separate arrays for different types of markers
+  let incidentMarkers = [];
+  let locationMarkers = [];
+  let geofences = [];
+  let currentView = '2d';
+  
+  const CENTER_LAT = 14.6098153;
+  const CENTER_LNG = 121.0418842;
+  const ZOOM_LEVEL = 10;
+  
+  function toggleMapView(viewType) {
+      const map2DElement = document.getElementById('map-2d');
+      const map3DElement = document.getElementById('map-3d');
+      const styleControls = document.getElementById('style-controls');
+      
+      if (!map2DElement || !map3DElement || !styleControls) return;
+  
+      document.querySelectorAll('.view-toggle').forEach(btn => btn.classList.remove('active'));
+  
+      // Store current markers' state before clearing
+      const currentIncidentMarkersState = storeMarkersState(incidentMarkers);
+      const currentLocationMarkersState = storeMarkersState(locationMarkers);
+  
+      // Clear existing markers
+      clearAllMarkers();
+  
+      if (viewType === '2d') {
+          document.getElementById('2d-view').classList.add('active');
+          map2DElement.style.display = 'block';
+          map3DElement.style.display = 'none';
+          styleControls.style.display = 'none';
+          if (map2D) map2D.invalidateSize();
+          currentView = '2d';
+      } else {
+          document.getElementById('3d-view').classList.add('active');
+          map2DElement.style.display = 'none';
+          map3DElement.style.display = 'block';
+          styleControls.style.display = 'block';
+          if (map3D) map3D.resize();
+          currentView = '3d';
+      }
+  
+      // Restore markers with new view type
+      restoreMarkers(currentIncidentMarkersState, 'incident');
+      restoreMarkers(currentLocationMarkersState, 'location');
+      
+      // Refresh incidents and location markers
+      fetchAndDisplayIncidents();
+      fetchAndDisplayMarkers();
+  }
+  
+  function storeMarkersState(markersArray) {
+      return markersArray.map(markerObj => ({
+          position: markerObj.type === '2d' ? 
+              [markerObj.marker.getLatLng().lat, markerObj.marker.getLatLng().lng] :
+              markerObj.marker.getLngLat(),
+          popupContent: markerObj.type === '2d' ? 
+              markerObj.marker.getPopup()._content :
+              markerObj.marker.getPopup()._content,
+          data: markerObj.data
+      }));
+  }
+  
+  function restoreMarkers(markersState, markerType) {
+    markersState.forEach(state => {
+        if (markerType === 'incident') {
+            createIncidentMarker({
+                latitude: state.position[0],
+                longitude: state.position[1],
+                ...state.data
+            });
+        } else if (markerType === 'location') {
+            addMarkerToMap({
+                latitude: state.position[0],
+                longitude: state.position[1],
+                ...state.data
+            });
+        }
+    });
+}
+
+// Add CSS styles for the markers
+const style = document.createElement('style');
+style.textContent = `
+.custom-category-marker {
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+}
+`;
+document.head.appendChild(style);
+  
+  function clearAllMarkers() {
+      // Clear incident markers
+      incidentMarkers.forEach(markerObj => {
+          if (markerObj.marker) {
+              if (markerObj.type === '2d' && markerObj.marker.remove) {
+                  markerObj.marker.remove();
+              } else if (markerObj.type === '3d' && markerObj.marker.remove) {
+                  markerObj.marker.remove();
+              }
+          }
+      });
+      incidentMarkers = [];
+  
+      // Clear location markers
+      locationMarkers.forEach(markerObj => {
+          if (markerObj.marker) {
+              if (markerObj.type === '2d' && markerObj.marker.remove) {
+                  markerObj.marker.remove();
+              } else if (markerObj.type === '3d' && markerObj.marker.remove) {
+                  markerObj.marker.remove();
+              }
+          }
+      });
+      locationMarkers = [];
+  }
+  
+  function initMaps() {
+    const mapContainer = document.getElementById('map-container');
+    if (!mapContainer) return;
+
+    // Create coordinates display
+    const coordsDisplay = document.createElement('div');
+    coordsDisplay.style.position = 'absolute';
+    coordsDisplay.style.top = '10px';
+    coordsDisplay.style.right = '10px';
+    coordsDisplay.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+    coordsDisplay.style.padding = '10px';
+    coordsDisplay.style.border = '1px solid #ccc';
+    coordsDisplay.style.zIndex = '1000';
+    coordsDisplay.innerText = 'Lat: 0, Lng: 0';
+    mapContainer.appendChild(coordsDisplay);
+
+    // Initialize 2D map
+    if (document.getElementById('map-2d')) {
+        map2D = L.map('map-2d', {
+            zoomControl: true
+        }).setView([CENTER_LAT, CENTER_LNG], ZOOM_LEVEL);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map2D);
+
+        map2D.zoomControl.setPosition('topright');
+
+        // Add 2D mousemove handler
+        map2D.on('mousemove', function(e) {
+            const lat = e.latlng.lat.toFixed(6);
+            const lng = e.latlng.lng.toFixed(6);
+            coordsDisplay.innerText = `Lat: ${lat}, Lng: ${lng}`;
+        });
+    }
+
+    // Initialize 3D map
+    if (document.getElementById('map-3d')) {
+        mapboxgl.accessToken = 'pk.eyJ1IjoiamFzb25jZGVsYXJvc2EiLCJhIjoiY202MGd4ZXNyMDF2MDJpcTR4aHhqMGNvOSJ9.SVKcekxHU0w8-6AoRp9K9A';
+        map3D = new mapboxgl.Map({
+            container: 'map-3d',
+            style: 'mapbox://styles/mapbox/navigation-day-v1',
+            center: [CENTER_LNG, CENTER_LAT],
+            zoom: ZOOM_LEVEL,
+            pitch: 60,
+            bearing: -17.6,
+            antialias: true,
+            preserveDrawingBuffer: true,
+            maxZoom: 20
+        });
+
+        // Add 3D mousemove handler
+        map3D.on('mousemove', function(e) {
+            const lat = e.lngLat.lat.toFixed(6);
+            const lng = e.lngLat.lng.toFixed(6);
+            coordsDisplay.innerText = `Lat: ${lat}, Lng: ${lng}`;
+        });
+
+        // Rest of map3D initialization...
+        map3D.on('load', () => {
+            map3D.resize();
+            if (incidentMarkers.length > 0 || locationMarkers.length > 0) {
+                refreshAllMarkers();
+            }
+        });
+
+        map3D.on('style.load', () => {
+            setupMap3DFeatures();
+            refreshAllMarkers();
+        });
+
+        map3D.addControl(new mapboxgl.NavigationControl({ 
+            showCompass: true, 
+            showZoom: true,
+            visualizePitch: true
+        }), 'top-right');
+
+        setupMapStyleControls();
+    }
+}
+  
+  function setupMap3DFeatures() {
+      if (!map3D) return;
+  
+      map3D.setPaintProperty('background', 'background-opacity', 1);
+  
+      // Add 3D buildings
+      if (!map3D.getLayer('3d-buildings')) {
+          map3D.addLayer({
+              'id': '3d-buildings',
+              'source': 'composite',
+              'source-layer': 'building',
+              'filter': ['==', 'extrude', 'true'],
+              'type': 'fill-extrusion',
+              'minzoom': 15,
+              'paint': {
+                  'fill-extrusion-color': '#aaa',
+                  'fill-extrusion-height': [
+                      'interpolate', ['linear'], ['zoom'],
+                      15, 0,
+                      15.05, ['get', 'height']
+                  ],
+                  'fill-extrusion-base': [
+                      'interpolate', ['linear'], ['zoom'],
+                      15, 0,
+                      15.05, ['get', 'min_height']
+                  ],
+                  'fill-extrusion-opacity': 0.6
+              }
+          });
+      }
+  
+      // Add terrain if not exists
+      if (!map3D.getSource('mapbox-dem')) {
+          try {
+              map3D.addSource('mapbox-dem', {
+                  'type': 'raster-dem',
+                  'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+                  'tileSize': 512,
+                  'maxzoom': 14
+              });
+              map3D.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.5 });
+          } catch (e) {
+              console.warn('Terrain already exists or could not be added:', e);
+          }
+      }
+  
+      // Add sky layer if not exists
+      if (!map3D.getLayer('sky')) {
+          map3D.addLayer({
+              'id': 'sky',
+              'type': 'sky',
+              'paint': {
+                  'sky-type': 'atmosphere',
+                  'sky-atmosphere-sun': [0.0, 90.0],
+                  'sky-atmosphere-sun-intensity': 15
+              }
+          });
+      }
+  }
+  
+ // Update the setupMapStyleControls function to handle markers during style changes
+function setupMapStyleControls() {
+    const styleButtons = document.querySelectorAll('.style-button');
+    styleButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+            const style = e.target.dataset.style;
+            if (map3D) {
+                // Store current state before style change
+                const currentIncidentMarkersState = storeMarkersState(incidentMarkers);
+                const currentLocationMarkersState = storeMarkersState(locationMarkers);
+
+                // Clear existing markers
+                clearAllMarkers();
+
+                // Set new style
+                map3D.setStyle(style);
+
+                // After style loads, restore everything
+                map3D.once('style.load', () => {
+                    setupMap3DFeatures();
+                    
+                    // Add a small delay to ensure the style is fully loaded
+                    setTimeout(() => {
+                        restoreMarkers(currentIncidentMarkersState, 'incident');
+                        restoreMarkers(currentLocationMarkersState, 'location');
+                    }, 100);
+                });
+
+                styleButtons.forEach(btn => btn.classList.remove('active'));
+                e.target.classList.add('active');
+            }
+        });
+    });
+}
+  
+  function refreshAllMarkers() {
+      // Store current state
+      const currentIncidentMarkersState = storeMarkersState(incidentMarkers);
+      const currentLocationMarkersState = storeMarkersState(locationMarkers);
+  
+      // Clear existing markers
+      clearAllMarkers();
+  
+      // Restore all markers
+      restoreMarkers(currentIncidentMarkersState, 'incident');
+      restoreMarkers(currentLocationMarkersState, 'location');
+  }
+  
+  function setupEventListeners() {
+      const view2DButton = document.getElementById('2d-view');
+      const view3DButton = document.getElementById('3d-view');
+      
+      if (view2DButton) {
+          view2DButton.addEventListener('click', () => {
+              toggleMapView('2d');
+              refreshAllMarkers();
+          });
+      }
+      if (view3DButton) {
+          view3DButton.addEventListener('click', () => {
+              toggleMapView('3d');
+              refreshAllMarkers();
+          });
+      }
+  
+      // Set up date and search controls
+      const startDateInput = document.getElementById('start-date');
+      const endDateInput = document.getElementById('end-date');
+      const filterBtn = document.getElementById('filter-btn');
+      const searchBtn = document.getElementById('search-btn');
+      const searchQuery = document.getElementById('search-query');
+  
+      if (startDateInput && endDateInput) {
+          const today = new Date().toISOString().split('T')[0];
+          startDateInput.value = today;
+          endDateInput.value = today;
+      }
+  
+      if (filterBtn) {
+          filterBtn.addEventListener('click', () => {
+              if (startDateInput && endDateInput) {
+                  const startDate = startDateInput.value;
+                  const endDate = endDateInput.value;
+                  if (startDate && endDate) {
+                      fetchAndDisplayIncidents(startDate, endDate);
+                  } else {
+                      alert('Please select both start and end dates.');
+                  }
+              }
+          });
+      }
+  
+      if (searchBtn && searchQuery) {
+          searchBtn.addEventListener('click', () => {
+              const query = searchQuery.value.trim();
+              if (query) {
+                  fetchAndDisplayIncidents(null, null, query);
+              }
+          });
+  
+          searchQuery.addEventListener('keypress', (e) => {
+              if (e.key === 'Enter') {
+                  const query = searchQuery.value.trim();
+                  if (query) {
+                      fetchAndDisplayIncidents(null, null, query);
+                  }
+              }
+          });
+      }
+  }
+  
+  function fetchAndDisplayIncidents(startDate = null, endDate = null, query = null) {
+      let url = '/map_data';
+      const params = new URLSearchParams();
+      
+      if (startDate && endDate) {
+          params.append('start_date', startDate);
+          params.append('end_date', endDate);
+      }
+      if (query) {
+          params.append('query', query);
+      }
+  
+      // Clear only incident markers
+      incidentMarkers.forEach(markerObj => {
+          if (markerObj.marker) {
+              if (markerObj.type === '2d' && markerObj.marker.remove) {
+                  markerObj.marker.remove();
+              } else if (markerObj.type === '3d' && markerObj.marker.remove) {
+                  markerObj.marker.remove();
+              }
+          }
+      });
+      incidentMarkers = [];
+  
+      fetch(`${url}${params.toString() ? '?' + params.toString() : ''}`)
+          .then(response => response.json())
+          .then(incidents => {
+              const tableBody = document.querySelector('#incident-table tbody');
+              if (tableBody) {
+                  tableBody.innerHTML = '';
+              }
+  
+              incidents.forEach(incident => {
+                  if (incident.latitude && incident.longitude) {
+                      createIncidentMarker(incident);
+  
+                      if (tableBody) {
+                          const row = document.createElement('tr');
+                          row.innerHTML = `
+                              <td>${incident.category}</td>
+                              <td>${incident.location}</td>
+                              <td>${incident.timestamp}</td>
+                              <td><a href="/incident/${incident.id}">${incident.report_text}</a></td>
+                          `;
+                          tableBody.appendChild(row);
+                      }
+                  }
+              });
+          })
+          .catch(err => console.error("Error fetching incidents:", err));
+  }
+  
+  function createIncidentMarker(incident) {
+      const popupContent = createPopupContent(incident);
+  
+      if (currentView === '2d' && map2D) {
+          const marker2D = L.marker([incident.latitude, incident.longitude]).addTo(map2D);
+          const popup = L.popup({ closeButton: true, autoClose: false }).setContent(popupContent);
+          marker2D.bindPopup(popup);
+          
+
+          incidentMarkers.push({
+              type: '2d',
+              marker: marker2D,
+              data: incident
+          });
+      } 
+      else if (currentView === '3d' && map3D) {
+          const markerDiv = document.createElement('div');
+          markerDiv.innerHTML = `
+              <svg viewBox="0 0 24 24" width="24" height="24">
+                  <circle cx="12" cy="12" r="10" fill="red" stroke="white" stroke-width="2"/>
+              </svg>
+          `;
+          
+          const marker3D = new mapboxgl.Marker({
+              element: markerDiv,
+              anchor: 'bottom'
+          });
+          
+          const popup = new mapboxgl.Popup({ 
+              offset: [0, -30],
+              closeButton: true,
+              closeOnClick: false,
+            maxWidth: '500px',
+            className: 'custom-popup'
+          }).setHTML(popupContent);
+  
+          marker3D.setLngLat([incident.longitude, incident.latitude])
+              .setPopup(popup)
+              .addTo(map3D);
+  
+          incidentMarkers.push({
+              type: '3d',
+              marker: marker3D,
+              data: incident
+          });
+      }
+  }
+  
+  function createPopupContent(incident) {
+      const isVideo = (path) => {
+          const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov'];
+          return videoExtensions.some(ext => path.toLowerCase().endsWith(ext));
+      };
+  
+      let mediaHtml = '';
+      if (incident.media_path) {
+          if (isVideo(incident.media_path)) {
+              mediaHtml = `
+                  <div class="incident-video">
+                      <video width="400" controls>
+                          <source src="${incident.media_path}" type="video/${incident.media_path.split('.').pop()}">
+                          Your browser does not support the video tag.
+                      </video>
+                  </div>`;
+          } else {
+              mediaHtml = `
+                  <div class="incident-image">
+                      <img 
+                          src="${incident.media_path}" 
+                          alt="Incident Image" 
+                          style="max-width: 200px; max-height: 200px; margin: 10px 0;"
+                      >
+                  </div>`;
+          }
+      }
+  
+      return `
+          <div class="incident-info" style="font-size: 16px;">
+              ${mediaHtml}
+              <strong>Category:</strong> ${incident.category}<br>
+              <strong>Location:</strong> ${incident.location}<br>
+              <strong>Timestamp:</strong> ${incident.timestamp}<br>
+              <strong>Report:</strong> <a href="/incident/${incident.id}">${incident.report_text}</a><br>
+              <strong>AI Analysis:</strong> ${incident.openai_analysis}<br>
+              <strong>AI Action Points:</strong> ${incident.actionpoints}<br>
+              <strong>Recommendation:</strong> ${incident.recommendation}<br>
+              <strong>Field Notes:</strong> ${incident.field_notes}<br>
+              <strong>Damage Estimate:</strong> ${incident.damage_estimate}<br>
+              <strong>Crops Affected:</strong> ${incident.crops_affected}<br>
+          </div>
+      `;
+  }
+  
+  function fetchAndDisplayMarkers() {
+      fetch('/get_markers_map')
+          .then(response => response.json())
+          .then(markers => {
+              // Clear existing location markers
+              locationMarkers.forEach(markerObj => {
+                  if (markerObj.marker) {
+                      if (markerObj.type === '2d' && markerObj.marker.remove) {
+                          markerObj.marker.remove();
+                      } else if (markerObj.type === '3d' && markerObj.marker.remove) {
+                          markerObj.marker.remove();
+                      }
+                  }
+              });
+              locationMarkers = [];
+  
+              // Add new markers
+              markers.forEach(marker => {
+                  if (marker.latitude && marker.longitude) {
+                      addMarkerToMap(marker);
+                  }
+              });
+          })
+          .catch(err => console.error("Error fetching markers:", err));
+  }
+  
+ // Update the addMarkerToMap function to properly handle marker icons in 3D view
+function addMarkerToMap(markerData) {
+    const iconUrl = `/static/icons/${markerData.category.toLowerCase()}.png`;
+    const popupContent = createMarkerPopup(markerData);
+    
+    if (currentView === '2d' && map2D) {
+        const customIcon = L.icon({
+            iconUrl: iconUrl,
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32]
+        });
+
+        const locationMarker2D = L.marker([markerData.latitude, markerData.longitude], {
+            icon: customIcon
+        }).addTo(map2D);
+
+        const popup = L.popup({ 
+            closeButton: true, 
+            autoClose: false 
+        }).setContent(popupContent);
+
+        locationMarker2D.bindPopup(popup);
+        
+        locationMarkers.push({
+            type: '2d',
+            marker: locationMarker2D,
+            data: markerData
+        });
+    } 
+    else if (currentView === '3d' && map3D) {
+        // Create a new element for the 3D marker
+        const el = document.createElement('div');
+        el.className = `custom-category-marker ${markerData.category.toLowerCase()}-marker`;
+        el.style.backgroundImage = `url(${iconUrl})`;
+        el.style.backgroundSize = 'contain';
+        el.style.backgroundRepeat = 'no-repeat';
+        el.style.backgroundPosition = 'center';
+        el.style.width = '32px';
+        el.style.height = '32px';
+        el.style.cursor = 'pointer';
+
+        // Ensure the image is loaded before adding the marker
+        const img = new Image();
+        img.onload = () => {
+            const locationMarker3D = new mapboxgl.Marker({
+                element: el,
+                anchor: 'bottom'
+            })
+            .setLngLat([markerData.longitude, markerData.latitude]);
+
+            const popup = new mapboxgl.Popup({ 
+                offset: [0, -32],
+                closeButton: true,
+                closeOnClick: false
+            }).setHTML(popupContent);
+
+            locationMarker3D.setPopup(popup)
+                .addTo(map3D);
+
+            locationMarkers.push({
+                type: '3d',
+                marker: locationMarker3D,
+                data: markerData
+            });
+        };
+        img.onerror = () => {
+            console.error(`Failed to load icon for category: ${markerData.category}`);
+            // Fallback to a default marker if icon fails to load
+            const defaultMarker = new mapboxgl.Marker()
+                .setLngLat([markerData.longitude, markerData.latitude])
+                .setPopup(new mapboxgl.Popup({ 
+                    offset: [0, -32],
+                    closeButton: true,
+                    closeOnClick: false 
+                }).setHTML(popupContent))
+                .addTo(map3D);
+
+            locationMarkers.push({
+                type: '3d',
+                marker: defaultMarker,
+                data: markerData
+            });
+        };
+        img.src = iconUrl;
+    }
+}
+  
+  function createMarkerPopup(marker) {
+      return `
+          <div class="marker-popup">
+              <h3>${marker.label}</h3>
+              <p><strong>Category:</strong> ${marker.category}</p>
+              <p><strong>Description:</strong> ${marker.description}</p>
+              <p><strong>Created:</strong> ${new Date(marker.created_at).toLocaleString()}</p>
+          </div>
+      `;
+  }
+  
+  function fetchAndDisplayGeofences() {
+      fetch('/get_geofences')
+          .then(response => response.json())
+          .then(geofenceData => {
+              if (geofenceData.geofences && Array.isArray(geofenceData.geofences)) {
+                  // Clear existing geofences
+                  geofences.forEach(geofence => {
+                      if (geofence.polygon) {
+                          geofence.polygon.remove();
+                      }
+                  });
+                  geofences = [];
+  
+                  geofenceData.geofences.forEach(geofence => {
+                      if (geofence.boundaries) {
+                          // Add to 2D map
+                          if (map2D) {
+                              const polygon2D = L.polygon(geofence.boundaries).addTo(map2D);
+                              polygon2D.bindPopup(`<b>${geofence.name}</b>`);
+                              polygon2D.bindTooltip(geofence.name, { 
+                                  permanent: true, 
+                                  direction: 'center' 
+                              }).openTooltip();
+                              geofences.push({
+                                  name: geofence.name,
+                                  polygon: polygon2D,
+                                  type: '2d'
+                              });
+                          }
+  
+                          // Add to 3D map
+                          if (map3D) {
+                              const coordinates = geofence.boundaries.map(coord => [coord[1], coord[0]]);
+                              const sourceId = `geofence-source-${geofence.name}`;
+                              const layerId = `geofence-layer-${geofence.name}`;
+  
+                              // Remove existing layer and source if they exist
+                              if (map3D.getLayer(layerId)) {
+                                  map3D.removeLayer(layerId);
+                              }
+                              if (map3D.getSource(sourceId)) {
+                                  map3D.removeSource(sourceId);
+                              }
+  
+                              // Add source and layers after style is loaded
+                              if (map3D.isStyleLoaded()) {
+                                  addGeofenceLayers();
+                              } else {
+                                  map3D.once('style.load', addGeofenceLayers);
+                              }
+  
+                              function addGeofenceLayers() {
+                                  // Add source
+                                  map3D.addSource(sourceId, {
+                                      'type': 'geojson',
+                                      'data': {
+                                          'type': 'Feature',
+                                          'properties': {
+                                              'name': geofence.name
+                                          },
+                                          'geometry': {
+                                              'type': 'Polygon',
+                                              'coordinates': [coordinates]
+                                          }
+                                      }
+                                  });
+  
+                                  // Add fill layer
+                                  map3D.addLayer({
+                                      'id': layerId,
+                                      'type': 'fill-extrusion',
+                                      'source': sourceId,
+                                      'paint': {
+                                          'fill-extrusion-color': '#088',
+                                          'fill-extrusion-opacity': 0.3,
+                                          'fill-extrusion-height': 500,
+                                          'fill-extrusion-base': 0
+                                      }
+                                  });
+  
+                                  // Add outline layer
+                                  map3D.addLayer({
+                                      'id': `${layerId}-outline`,
+                                      'type': 'line',
+                                      'source': sourceId,
+                                      'paint': {
+                                          'line-color': '#0ff',
+                                          'line-width': 2
+                                      }
+                                  });
+                              }
+                          }
+                      }
+                  });
+              }
+          })
+          .catch(error => {
+              console.error('Error fetching geofences:', error);
+          });
+  }
+  
+  // Initialize everything when the DOM is fully loaded
+  document.addEventListener('DOMContentLoaded', () => {
+      initMaps();
+      
+      setTimeout(() => {
+          setupEventListeners();
+          fetchAndDisplayMarkers();
+          fetchAndDisplayIncidents();
+          fetchAndDisplayGeofences();
+      }, 100);
+  });
+  
+  
+</script>
+
+<script> // Function to search by address or latitude/longitude using Nominatim API
+    // Function to search by address or latitude/longitude
+    function searchAddress() {
+    const address = document.getElementById('searchAddress').value;
+    const lat = parseFloat(document.getElementById('searchLat').value);
+    const lon = parseFloat(document.getElementById('searchLon').value);
+
+    if (address) {
+        const geocodingAPI = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;
+        
+        fetch(geocodingAPI, {
+            headers: {
+                'User-Agent': 'YourAppName'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.length > 0) {
+                const { lat, lon } = data[0];
+                
+                if (currentView === '2d' && map2D) {
+                    // Clear existing search markers in 2D view
+                    map2D.eachLayer((layer) => {
+                        if (layer instanceof L.Marker && !incidentMarkers.some(m => m.marker === layer) && !locationMarkers.some(m => m.marker === layer)) {
+                            map2D.removeLayer(layer);
+                        }
+                    });
+                    // Add new marker and zoom in 2D
+                    map2D.setView([lat, lon], 15);
+                    L.marker([lat, lon]).addTo(map2D)
+                        .bindPopup(`Address: ${data[0].display_name}`)
+                        .openPopup();
+                } 
+                else if (currentView === '3d' && map3D) {
+                    // Add marker for 3D view
+                    const marker3D = new mapboxgl.Marker()
+                        .setLngLat([lon, lat])
+                        .setPopup(new mapboxgl.Popup()
+                            .setHTML(`Address: ${data[0].display_name}`))
+                        .addTo(map3D);
+                    
+                    map3D.flyTo({
+                        center: [lon, lat],
+                        zoom: 15
+                    });
+                    
+                    marker3D.togglePopup();
+                }
+            } else {
+                alert("Address not found.");
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert("Error in geocoding address.");
+        });
+    } else if (!isNaN(lat) && !isNaN(lon)) {
+        if (currentView === '2d' && map2D) {
+            // Clear existing search markers in 2D view
+            map2D.eachLayer((layer) => {
+                if (layer instanceof L.Marker && !incidentMarkers.some(m => m.marker === layer) && !locationMarkers.some(m => m.marker === layer)) {
+                    map2D.removeLayer(layer);
+                }
+            });
+            // Add marker for coordinates in 2D
+            map2D.setView([lat, lon], 15);
+            L.marker([lat, lon]).addTo(map2D)
+                .bindPopup(`Coordinates: ${lat}, ${lon}`)
+                .openPopup();
+        } 
+        else if (currentView === '3d' && map3D) {
+            // Add marker for coordinates in 3D
+            const marker3D = new mapboxgl.Marker()
+                .setLngLat([lon, lat])
+                .setPopup(new mapboxgl.Popup()
+                    .setHTML(`Coordinates: ${lat}, ${lon}`))
+                .addTo(map3D);
+            
+            map3D.flyTo({
+                center: [lon, lat],
+                zoom: 15
+            });
+            
+            marker3D.togglePopup();
+        }
+    } else {
+        alert("Please provide a valid address or coordinates.");
+    }
+}</script>
+
+</body>
+</html>

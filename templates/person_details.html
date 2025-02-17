@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">   
+    
+<link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+<script src="{{ url_for('static', filename='js/scripts.js') }}" defer></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">  
+<head>
+    <meta charset="UTF-8">
+    <title>Person Details</title>
+</head>{% include "chatbase.html" %}
+<body> {% include 'header.html' %}
+   <div class="container"> <h2>Person of Interest Details</h2>
+    <p><strong>Name:</strong> {{ person.name }}</p>
+    <p><strong>Alias:</strong> {{ person.alias }}</p>
+    <p><strong>Description:</strong> {{ person.description }}</p>
+    <p><strong>Last Seen Location:</strong> {{ person.last_seen_location }}</p>
+    <p><strong>Notes:</strong> {{ person.notes }}</p>
+    <img src="{{ url_for('static', filename=person.photo_path.replace('static/', '', 1)) }}" alt="Photo of {{ person.name }}">
+
+    <br>
+</div>
+</body>
+</html>

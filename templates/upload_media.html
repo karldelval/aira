@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Media</title>
+    <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+
+    <style>
+        /* Loader animation */
+        .loader {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Table styling */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        td img {
+            width: 50px;
+            height: auto;
+        }
+
+        td a {
+            color: #3498db;
+            text-decoration: none;
+        }
+
+        td a:hover {
+            text-decoration: underline;
+        }
+    </style>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+
+        header {
+            background-color: #3e3054;
+            color: white;
+            padding: 10px 20px;
+        }
+
+        nav ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        nav ul li {
+            margin-right: 20px;
+        }
+
+        nav ul li a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        nav ul li a:hover {
+            text-decoration: underline;
+        }
+
+        .form-container {
+            max-width: 80%;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-container h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #3e3054;
+        }
+
+        form label {
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        form input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+        }
+
+        form button {
+            width: 100%;
+            padding: 12px;
+            background-color: #3e3054;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        form button:hover {
+            background-color: #3e3054;
+        }
+
+        h3 {
+            color: #3e3054;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        ul li {
+            margin: 10px 0;
+        }
+
+        ul li a {
+            color: #3e3054;
+            text-decoration: none;
+        }
+
+        ul li a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    {% include 'header.html' %}
+
+    <div class="form-container">
+        <h2>Media Forensics</h2>
+        Upload a photo or video to match with records.
+        <form method="POST" enctype="multipart/form-data">
+            <label for="photo">Upload Photo:</label>
+            <input type="file" name="photo" id="photo" accept="image/*">
+            
+            <label for="video">Upload Video:</label>
+            <input type="file" name="video" id="video" accept="video/*">
+
+            <button type="submit">Upload and Analyze</button>
+        </form>
+        {% if matches %}
+        <h2>Matches Found:</h2>
+        <div class="progress" id="progress-bar" style="display: block;">
+            <div class="progress-bar" style="width: 0%;" id="progress"></div>
+        </div>
+        <table id="matches-table">
+            <thead>
+                <tr>
+                    <th>Thumbnail</th>
+                    <th>Match Type</th>
+                    <th>Similarity</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for match in matches %}
+                <tr>
+                    <td>
+                        <img src="{{ match.link }}" alt="Thumbnail" style="width: 100px; height: auto;">
+                    </td>
+                    <td>
+                        {% if 'uploads' in match.link %}
+                            <b>Matched media in Incident records</b>
+                        {% elif 'POI' in match.link %}
+                            <b>Matched media in Persons-of-Interest records</b>
+                        {% else %}
+                            <b>Matched media</b>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if match.similarity <= 0.2 %}
+                            High Probability Match
+                        {% elif 0.21 <= match.similarity <= 0.3 %}
+                            Mid to High Probability Match
+                        {% else %}
+                            Low Probability Match
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if 'uploads' in match.link %}
+                            <a href="{{ url_for('search_incidents', media_path=match.link) }}">OPEN INCIDENT</a>
+                        {% elif 'POI' in match.link %}
+                            <a href="{{ url_for('search_person_of_interest', photo_path=match.link) }}">OPEN POI RECORD</a>
+                        {% else %}
+                            <a href="{{ match.link }}">OPEN LINK</a>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No matching media found OR already found match for this in previous data.</p>
+    {% endif %}
+    <script>
+        // Simulate progress bar during processing (you can adjust this for real-time updates if needed)
+        function showProgressBar() {
+            let progress = document.getElementById('progress');
+            let progressBar = document.getElementById('progress-bar');
+            progressBar.style.display = 'block';
+    
+            let width = 0;
+            let interval = setInterval(function() {
+                if (width >= 100) {
+                    clearInterval(interval);
+                    progressBar.style.display = 'none';  // Hide progress bar after completion
+                } else {
+                    width++;
+                    progress.style.width = width + '%';
+                }
+            }, 50); // Adjust the speed of the progress bar
+        }
+    
+        // Example of showing the progress bar during media processing
+        showProgressBar();
+    </script>
+</body>
+</html>

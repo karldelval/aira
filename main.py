@@ -95,6 +95,21 @@ class BarangayClearance(db.Model):
                 f"certificate_number='{self.certificate_number}', issued_on='{self.issued_on}')>")
 
 
+class Campaign(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    active = db.Column(db.Boolean, default=True)
+
+class CampaignScan(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    campaign_id = db.Column(db.Integer, db.ForeignKey('campaign.id'), nullable=False)
+    citizen_id = db.Column(db.Integer, db.ForeignKey('citizendata.ID'), nullable=False)
+    notes = db.Column(db.Text)
+    latitude = db.Column(db.String(50))
+    longitude = db.Column(db.String(50))
+    scanned_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class SensorData(db.Model):
     __tablename__ = 'sensor_data'
@@ -955,6 +970,535 @@ def home():
 def geofence():
     return render_template('geofence.html')
 
+@app.template_filter('from_json')
+def from_json(value):
+    try:
+        return json.loads(value)
+    except:
+        return {}
+
+
+#Campaign Management
+
+@app.route("/campaigns")
+def campaign_management():
+    return render_template("campaigns.html")
+
+@app.route("/add_campaign", methods=["POST"])
+def add_campaign():
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        description = data.get('description')
+        
+        if not name:
+            return jsonify({"error": "Campaign name is required"}), 400
+            
+        campaign = Campaign(
+            name=name,
+            description=description,
+            active=True
+        )
+        
+        db.session.add(campaign)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Campaign added successfully",
+            "campaign": {
+                "id": campaign.id,
+                "name": campaign.name,
+                "description": campaign.description,
+                "active": campaign.active
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/get_campaigns_mgt")
+def get_campaigns_mgt():
+    try:
+        include_inactive = request.args.get('include_inactive', 'false').lower() == 'true'
+        
+        if include_inactive:
+            campaigns = Campaign.query.all()
+        else:
+            campaigns = Campaign.query.filter_by(active=True).all()
+            
+        return jsonify({
+            "success": True,
+            "campaigns": [{
+                "id": c.id,
+                "name": c.name,
+                "description": c.description,
+                "active": c.active
+            } for c in campaigns]
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/get_campaign/<int:campaign_id>")
+def get_campaign(campaign_id):
+    try:
+        campaign = Campaign.query.get(campaign_id)
+        if not campaign:
+            return jsonify({"error": "Campaign not found"}), 404
+            
+        return jsonify({
+            "success": True,
+            "campaign": {
+                "id": campaign.id,
+                "name": campaign.name,
+                "description": campaign.description,
+                "active": campaign.active
+            }
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/update_campaign/<int:campaign_id>", methods=["PUT"])
+def update_campaign(campaign_id):
+    try:
+        campaign = Campaign.query.get(campaign_id)
+        if not campaign:
+            return jsonify({"error": "Campaign not found"}), 404
+            
+        data = request.get_json()
+        campaign.name = data.get('name', campaign.name)
+        campaign.description = data.get('description', campaign.description)
+        
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Campaign updated successfully",
+            "campaign": {
+                "id": campaign.id,
+                "name": campaign.name,
+                "description": campaign.description,
+                "active": campaign.active
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/delete_campaign/<int:campaign_id>", methods=["DELETE"])
+def delete_campaign(campaign_id):
+    try:
+        campaign = Campaign.query.get(campaign_id)
+        if not campaign:
+            return jsonify({"error": "Campaign not found"}), 404
+            
+        db.session.delete(campaign)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Campaign deleted successfully"
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/toggle_campaign/<int:campaign_id>", methods=["POST"])
+def toggle_campaign(campaign_id):
+    try:
+        campaign = Campaign.query.get(campaign_id)
+        if not campaign:
+            return jsonify({"error": "Campaign not found"}), 404
+            
+        campaign.active = not campaign.active
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": f"Campaign {'activated' if campaign.active else 'deactivated'} successfully",
+            "active": campaign.active
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+#End of Campaign Management
+
+
+#Campaign Scans
+@app.route("/campaign_scans")
+def campaign_scans_page():
+    return render_template("campaign_scans.html")
+
+@app.route("/get_campaign_scans")
+def get_campaign_scans():
+    try:
+        # Parameter extraction with type checking and defaults
+        campaign_id = request.args.get('campaign_id', type=int)
+        date_start = request.args.get('date_start', '').strip()
+        date_end = request.args.get('date_end', '').strip()
+        barangay = request.args.get('barangay', '').strip()
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
+
+        # Debug: Print incoming parameters
+        print(f"Campaign ID: {campaign_id}")
+        print(f"Date Start: {date_start}")
+        print(f"Date End: {date_end}")
+        print(f"Barangay: {barangay}")
+        print(f"Page: {page}")
+        print(f"Per Page: {per_page}")
+
+        # Validate campaign_id
+        if not campaign_id:
+            return jsonify({"error": "Campaign ID is required"}), 400
+
+        # Check if campaign exists
+        campaign = Campaign.query.get(campaign_id)
+        if not campaign:
+            return jsonify({"error": f"Campaign with ID {campaign_id} not found"}), 404
+
+        print(f"Campaign Found: {campaign.name}")
+
+        # Initial query
+        query = CampaignScan.query.filter(CampaignScan.campaign_id == campaign_id)
+
+        # Debug: Print total scans for this campaign
+        total_campaign_scans = query.count()
+        print(f"Total Scans for Campaign: {total_campaign_scans}")
+
+        # Apply date filters safely
+        if date_start:
+            try:
+                start_date = datetime.strptime(date_start, '%Y-%m-%d')
+                query = query.filter(CampaignScan.scanned_at >= start_date)
+            except ValueError:
+                return jsonify({"error": f"Invalid date_start format: {date_start}. Use YYYY-MM-DD"}), 400
+
+        if date_end:
+            try:
+                end_date = datetime.strptime(date_end, '%Y-%m-%d') + timedelta(days=1)
+                query = query.filter(CampaignScan.scanned_at < end_date)
+            except ValueError:
+                return jsonify({"error": f"Invalid date_end format: {date_end}. Use YYYY-MM-DD"}), 400
+
+        # Total items
+        total_items = query.count()
+        print(f"Total Items After Filtering: {total_items}")
+
+        # Pagination
+        total_pages = max(1, (total_items + per_page - 1) // per_page)
+
+        # Fetch paginated results
+        scans = query.order_by(CampaignScan.scanned_at.desc())\
+            .offset((page - 1) * per_page)\
+            .limit(per_page)\
+            .all()
+
+        print(f"Scans Fetched: {len(scans)}")
+
+        # Prepare response data
+        scans_data = []
+        citizen_ids = set()
+        for scan in scans:
+            print(f"Scan ID: {scan.id}, Citizen ID: {scan.citizen_id}")
+            
+            citizen = CitizenData.query.get(scan.citizen_id)
+            citizen_ids.add(scan.citizen_id)
+            
+            if citizen:
+                print(f"Citizen Name: {citizen.NAME}")
+                scan_data = {
+                    "id": scan.id,
+                    "citizen_name": citizen.NAME,
+                    "barangay": citizen.BARANGAY,
+                    "latitude": scan.latitude,
+                    "longitude": scan.longitude,
+                    "notes": scan.notes,
+                    "scanned_at": scan.scanned_at.isoformat() if scan.scanned_at else None,
+                }
+            else:
+                print(f"No citizen found for Citizen ID: {scan.citizen_id}")
+                scan_data = {
+                    "id": scan.id,
+                    "citizen_name": "Unknown",
+                    "barangay": "Unknown",
+                    "latitude": scan.latitude,
+                    "longitude": scan.longitude,
+                    "notes": scan.notes,
+                    "scanned_at": scan.scanned_at.isoformat() if scan.scanned_at else None,
+                }
+            
+            scans_data.append(scan_data)
+
+        # Fetch scan history for each unique citizen
+        citizen_scan_histories = {}
+        for citizen_id in citizen_ids:
+            print(f"Fetching scan history for Citizen ID: {citizen_id}")
+            
+            # Get all scans for this citizen across all campaigns
+            citizen_scans = CampaignScan.query.filter_by(citizen_id=citizen_id)\
+                .order_by(CampaignScan.scanned_at.desc())\
+                .all()
+            
+            print(f"Scans found for Citizen ID {citizen_id}: {len(citizen_scans)}")
+            
+            # Prepare scan history
+            scan_history = []
+            for hist_scan in citizen_scans:
+                campaign = Campaign.query.get(hist_scan.campaign_id)
+                scan_history.append({
+                    "campaign_id": hist_scan.campaign_id,
+                    "campaign_name": campaign.name if campaign else "Unknown Campaign",
+                    "citizen_name": CitizenData.query.get(hist_scan.citizen_id).NAME if CitizenData.query.get(hist_scan.citizen_id) else "Unknown",
+                    "scanned_at": hist_scan.scanned_at.isoformat() if hist_scan.scanned_at else None,
+                    "latitude": hist_scan.latitude,
+                    "longitude": hist_scan.longitude,
+                    "notes": hist_scan.notes
+                })
+            
+            citizen_scan_histories[citizen_id] = scan_history
+
+        # Rest of the existing code remains the same...
+
+        return jsonify({
+            "success": True,
+            "scans": scans_data,
+            "citizen_scan_histories": citizen_scan_histories,
+            # ... other existing fields ...
+        })
+
+    except Exception as e:
+        # Comprehensive error logging
+        import traceback
+        print("Full Error Traceback:")
+        traceback.print_exc()
+        
+        return jsonify({
+            "error": "Internal Server Error",
+            "details": str(e)
+        }), 500
+
+@app.route("/export_campaign_scans/<int:campaign_id>")
+def export_campaign_scans(campaign_id):
+    try:
+        # Get filter parameters
+        date_start = request.args.get('date_start')
+        date_end = request.args.get('date_end')
+        barangay = request.args.get('barangay')
+
+        # Build query
+        query = CampaignScan.query.join(CitizenData)\
+            .filter(CampaignScan.campaign_id == campaign_id)
+
+        # Apply filters
+        if date_start:
+            query = query.filter(CampaignScan.scanned_at >= datetime.strptime(date_start, '%Y-%m-%d'))
+        if date_end:
+            query = query.filter(CampaignScan.scanned_at <= datetime.strptime(date_end, '%Y-%m-%d') + timedelta(days=1))
+        if barangay:
+            query = query.filter(CitizenData.BARANGAY == barangay)
+
+        # Get all scans
+        scans = query.order_by(CampaignScan.scanned_at.desc()).all()
+
+        # Create CSV output
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow([
+            'Scan Date', 'Citizen Name', 'Barangay', 'Latitude', 
+            'Longitude', 'Notes'
+        ])
+
+        # Write data
+        for scan in scans:
+            writer.writerow([
+                scan.scanned_at.strftime('%Y-%m-%d %H:%M:%S'),
+                scan.citizen.NAME,
+                scan.citizen.BARANGAY,
+                scan.latitude,
+                scan.longitude,
+                scan.notes
+            ])
+
+        # Prepare response
+        output.seek(0)
+        campaign = Campaign.query.get(campaign_id)
+        filename = f"campaign_{campaign.name}_{datetime.now().strftime('%Y%m%d')}.csv"
+        
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={
+                'Content-Disposition': f'attachment; filename={filename}',
+                'Content-Type': 'text/csv'
+            }
+        )
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/get_campaign_summary/<int:campaign_id>")
+def get_campaign_summary(campaign_id):
+    try:
+        # Get base query
+        query = CampaignScan.query.join(CitizenData)\
+            .filter(CampaignScan.campaign_id == campaign_id)
+
+        # Get summary statistics
+        summary = {
+            "total_scans": query.count(),
+            "unique_citizens": query.with_entities(CitizenData.id).distinct().count(),
+            "scans_by_barangay": db.session.query(
+                CitizenData.BARANGAY,
+                func.count(CampaignScan.id)
+            ).join(CampaignScan)\
+            .filter(CampaignScan.campaign_id == campaign_id)\
+            .group_by(CitizenData.BARANGAY)\
+            .all(),
+            "scans_by_date": db.session.query(
+                func.date(CampaignScan.scanned_at),
+                func.count(CampaignScan.id)
+            ).filter(CampaignScan.campaign_id == campaign_id)\
+            .group_by(func.date(CampaignScan.scanned_at))\
+            .all()
+        }
+
+        return jsonify({
+            "success": True,
+            "summary": {
+                "total_scans": summary["total_scans"],
+                "unique_citizens": summary["unique_citizens"],
+                "scans_by_barangay": dict(summary["scans_by_barangay"]),
+                "scans_by_date": {
+                    date.strftime('%Y-%m-%d'): count 
+                    for date, count in summary["scans_by_date"]
+                }
+            }
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+#End of Campaign Scans
+
+
+
+
+
+@app.route("/scanQR")
+def scanner_page():
+    return render_template("scanQR.html")
+
+
+@app.route("/get_campaigns")
+def get_campaigns():
+    try:
+        campaigns = Campaign.query.filter_by(active=True).all()
+        return jsonify({
+            "success": True,
+            "campaigns": [{
+                "id": c.id,
+                "name": c.name,
+                "description": c.description
+            } for c in campaigns]
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/scan_qr", methods=["POST"])
+def process_qr_scan():  # Changed function name from scan_and_update to process_qr_scan
+    try:
+        data = request.get_json()
+        qr_text = data.get('qr_text')
+        
+        if not qr_text:
+            return jsonify({"error": "No QR code data provided"}), 400
+
+        # Parse QR code format: Number_Name_Municipality_Barangay
+        qr_parts = qr_text.split("_")
+        if len(qr_parts) < 2:
+            return jsonify({"error": "Invalid QR code format"}), 400
+        
+        citizen_name = qr_parts[1]  # Extract name
+        
+        # Query the database for the citizen
+        citizen = CitizenData.query.filter_by(NAME=citizen_name).first()
+        
+        if not citizen:
+            return jsonify({
+                "error": "Citizen not found",
+                "name": citizen_name
+            }), 404
+
+        # Return citizen data for confirmation
+        return jsonify({
+            "success": True,
+            "citizen": citizen.to_dict()
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+from datetime import datetime
+
+@app.route("/confirm_update", methods=["POST"])
+def confirm_update():
+    try:
+        data = request.get_json()
+        campaign_id = data.get('campaign_id')
+        citizen_name = data.get('name')
+        latitude = data.get('latitude')
+        longitude = data.get('longitude')
+        scan_time_str = data.get('scan_time')
+        notes = data.get('notes')
+        
+        # Convert ISO string to datetime object
+        try:
+            scan_time = datetime.fromisoformat(scan_time_str.replace('Z', '+00:00'))
+        except (ValueError, AttributeError) as e:
+            return jsonify({"error": f"Invalid timestamp format: {str(e)}"}), 400
+        
+        # Validate required fields
+        if not all([campaign_id, citizen_name]):
+            return jsonify({"error": "Campaign and citizen name are required"}), 400
+        
+        if latitude is None or longitude is None:
+            return jsonify({"error": "Location data is required"}), 400
+
+        # Get citizen record
+        citizen = CitizenData.query.filter_by(NAME=citizen_name).first()
+        if not citizen:
+            return jsonify({"error": "Citizen not found"}), 404
+
+        # Update citizen's last scan location
+        citizen.latitude = str(latitude)
+        citizen.longitude = str(longitude)
+        citizen.timestamp = scan_time
+
+        # Create campaign scan record
+        campaign_scan = CampaignScan(
+            campaign_id=campaign_id,
+            citizen_id=citizen.ID,
+            notes=notes,
+            latitude=str(latitude),
+            longitude=str(longitude),
+            scanned_at=scan_time
+        )
+        
+        db.session.add(campaign_scan)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Campaign scan recorded successfully"
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/inventory')
 def inventory():
@@ -1128,81 +1672,9 @@ def get_iaq_history(device_id):
 
 CORS(app)
 
-@app.route("/scanQR")
-def scanner_page():
-    return render_template("scanQR.html")
 
-@app.route("/scan_qr", methods=["POST"])
-def scan_and_update():
-    try:
-        data = request.get_json()
-        qr_text = data.get('qr_text')
-        
-        if not qr_text:
-            return jsonify({"error": "No QR code data provided"}), 400
 
-        # Extract name from QR code text (second field)
-        qr_parts = qr_text.split("_")
-        if len(qr_parts) < 2:
-            return jsonify({"error": "Invalid QR code format"}), 400
-        
-        citizen_name = qr_parts[1]  # Extract name
-        
-        # Query the database for the citizen
-        citizen = CitizenData.query.filter_by(NAME=citizen_name).first()
-        
-        if not citizen:
-            return jsonify({
-                "error": "Citizen not found",
-                "name": citizen_name
-            }), 404
 
-        # Return citizen data for confirmation
-        return jsonify({
-            "success": True,
-            "citizen": citizen.to_dict()
-        })
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/confirm_update", methods=["POST"])
-def confirm_update():
-    try:
-        data = request.get_json()
-        citizen_name = data.get('name')
-        latitude = data.get('latitude')
-        longitude = data.get('longitude')
-        
-        # Validate required fields
-        if not citizen_name:
-            return jsonify({"error": "No citizen name provided"}), 400
-            
-        if latitude is None or longitude is None:
-            return jsonify({"error": "Location data is required"}), 400
-
-        citizen = CitizenData.query.filter_by(NAME=citizen_name).first()
-        if not citizen:
-            return jsonify({"error": "Citizen not found"}), 404
-
-        # Update the fields
-        citizen.notes = "Scanned via QR"
-        citizen.status = "Verified"
-        citizen.timestamp = datetime.utcnow()
-        citizen.latitude = str(latitude)  # Convert to string since the column is Text
-        citizen.longitude = str(longitude)  # Convert to string since the column is Text
-        
-        db.session.commit()
-        
-        return jsonify({
-            "success": True,
-            "message": "Citizen record updated successfully",
-            "citizen": citizen.to_dict()
-        })
-
-    except Exception as e:
-        db.session.rollback()  # Rollback in case of error
-        return jsonify({"error": str(e)}), 500
 
 @app.route('/get_oaq_data')
 def get_oaq_data():
@@ -5219,72 +5691,67 @@ def incident_details(incident_id):
         incident = Incident.query.get_or_404(incident_id)
         user = USERS.query.filter_by(user_id=incident.user_id).first()
         user_name = f"{user.first_name} {user.last_name}" if user else "Unknown User"
-        markers =Marker.query.all()
-        nearby_markers = get_nearby_markers(incident.latitude, incident.longitude)
-
+        
+        # Only get nearby markers if coordinates exist
+        nearby_markers = []
+        if incident.latitude is not None and incident.longitude is not None:
+            markers = Marker.query.all()
+            nearby_markers = get_nearby_markers(incident.latitude, incident.longitude)
 
         # Fetch all incident analysis records and convert them to dictionaries
         incident_analysis_records = get_incident_analysis()
         incident_analysis_dicts = [analysis.to_dict() for analysis in incident_analysis_records]
 
-        # Find similar reports using the optimized function
-        similar_reports = get_similar_reports(report_text=incident.report_text, 
-                                            analysis_records=incident_analysis_dicts,
-                                            incident=incident,
-                                            threshold=0.85)  # Adjusted threshold for higher accuracy
+        # Find similar reports
+        similar_reports = get_similar_reports(
+            report_text=incident.report_text, 
+            analysis_records=incident_analysis_dicts,
+            incident=incident,
+            threshold=0.85
+        )
 
-# Collect unique action points, ensuring no duplicates
+        # Collect unique action points
         action_points = set()
 
-# Check for exact matches first
+        # Check for exact matches first
         exact_matches = [report for report in incident_analysis_dicts if report['report_text'] == incident.report_text]
 
-# Add action points from exact matches
+        # Add action points from exact matches
         for report in exact_matches:
             if 'action_points' in report and report['action_points']:
-                points = report['action_points'].split('\n')  # Assuming action points are newline-separated
+                points = report['action_points'].split('\n')
                 action_points.update([point.strip() for point in points if point.strip()])
 
-# Add action points from similar reports
+        # Add action points from similar reports
         for report in similar_reports:
             if 'action_points' in report and report['action_points']:
                 points = report['action_points'].split('\n')
                 action_points.update([point.strip() for point in points if point.strip()])
 
-# Convert the set back to a sorted list for rendering
+        # Convert the set back to a sorted list
         action_points = sorted(action_points)
 
         # SIMILAR INCIDENTS LIST
-        # Fetch all incidents for comparison
         all_incidents = Incident.query.all()
-
-        # Extract report texts from all incidents
         all_reports = [i.report_text for i in all_incidents]
 
-        # Vectorize the report text using TF-IDF Vectorizer
         vectorizer = TfidfVectorizer(stop_words='english')
         tfidf_matrix = vectorizer.fit_transform(all_reports)
 
-        # Get the index of the current incident in the list
         current_index = all_incidents.index(incident)
-
-        # Calculate cosine similarity between the current incident and all others
         cosine_sim = cosine_similarity(tfidf_matrix[current_index], tfidf_matrix)
+        similar_indices = cosine_sim.argsort()[0][-6:-1]
 
-        # Get the most similar incidents based on cosine similarity
-        similar_indices = cosine_sim.argsort()[0][-6:-1]  # Get top 5 similar incidents (excluding itself)
-
-        # Prepare the data to be passed to the template
         similar_incidents = [all_incidents[i] for i in similar_indices]
 
-        # Prepare the data for displaying the current incident
+        # Prepare incident data with null checks for coordinates
         incident_data = {
             'id': incident.id,
             'report_text': incident.report_text,
             'timestamp': incident.timestamp,
             'category': incident.category,
-            'latitude': incident.latitude,
-            'longitude': incident.longitude,
+            'latitude': incident.latitude if incident.latitude is not None else None,
+            'longitude': incident.longitude if incident.longitude is not None else None,
             'tokens': incident.tokens,
             'openai_analysis': incident.openai_analysis,
             'user_id': incident.user_id,
@@ -5294,22 +5761,17 @@ def incident_details(incident_id):
             'field_notes': incident.field_notes,
             'crops_affected': incident.crops_affected,
             'damage_estimate': incident.damage_estimate,
-
             'media_path': incident.media_path if incident.media_path else None
         }
 
-        # Fetch responses for this incident, ordered by timestamp descending
+        # Fetch responses
         responses = ResponseDB.query.filter_by(incident_id=incident_id).order_by(ResponseDB.timestamp.desc()).all()
-       
-        matches = None
-       # if incident.media_path:
-           # matches = analyze_media(incident.media_path)
 
-        # Handle adding a new response
+        # Handle POST request for new response
         if request.method == 'POST':
             response_text = request.form['response']
             new_response = Response(
-                user_id=session['user_id'],  # Assuming you have a current_user for logged-in user
+                user_id=session['user_id'],
                 response=response_text,
                 incident_id=incident.id,
                 timestamp=datetime.utcnow()
@@ -5318,11 +5780,20 @@ def incident_details(incident_id):
             db.session.commit()
             return redirect(url_for('incident_details', incident_id=incident_id))
 
-        return render_template('incident_details.html', incident=incident_data, 
-                               similar_incidents=similar_incidents, responses=responses, 
-                               action_points=action_points, matches=matches, user_name=user_name,nearby_markers=nearby_markers)
+        return render_template(
+            'incident_details.html',
+            incident=incident_data,
+            similar_incidents=similar_incidents,
+            responses=responses,
+            action_points=action_points,
+            matches=None,
+            user_name=user_name,
+            nearby_markers=nearby_markers
+        )
 
     except Exception as e:
+        print(f"Error in incident_details: {str(e)}")  # Add logging
+        traceback.print_exc()  # Print full stack trace
         return jsonify({"error": str(e)}), 500
 
 from math import radians, sin, cos, sqrt, atan2
@@ -6199,7 +6670,34 @@ def generate_sample_data():
     db.session.commit()
     return jsonify({"message": "100 sample incidents generated"}), 201
 
-
+@app.route('/get-recording/<recording_id>')
+def get_recording(recording_id):
+    """
+    Serve Twilio recording with authentication
+    """
+    try:
+        # Your Twilio credentials
+        account_sid = "AC93e6456bc3439c7c0e028571322c5853"
+        auth_token = "16d3346ec62a9b34c87893fa7e3f8765"
+        
+        # Construct the Twilio URL
+        url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Recordings/{recording_id}.mp3"
+        
+        # Make authenticated request to Twilio
+        response = requests.get(url, auth=(account_sid, auth_token))
+        
+        if response.status_code == 200:
+            return Response(
+                response.content,
+                mimetype='audio/mpeg',
+                headers={'Content-Disposition': f'inline; filename={recording_id}.mp3'}
+            )
+        else:
+            return "Recording not found", 404
+            
+    except Exception as e:
+        print(f"Error retrieving recording: {e}")
+        return "Error retrieving recording", 500
 # OpenAI Incident Analysis Route
 
 # OpenAI API Key (Replace with your actual key)
@@ -6310,7 +6808,7 @@ Please incorporate the custom guidance into your analysis while maintaining the 
             messages=[
                 {
                     "role": "system", 
-                    "content": "You are an expert incident data analyst. Provide detailed, insightful, and actionable analysis. If a custom guidance is provided, carefully integrate it into your analysis while maintaining the core analytical objectives."
+                    "content": "You are an expert incident data analyst. Provide detailed, insightful, and actionable analysis. Be concise, use bullet points. If a custom guidance is provided, carefully integrate it into your analysis while maintaining the core analytical objectives."
                 },
                 {
                     "role": "user", 
@@ -6364,34 +6862,280 @@ def parse_date_range(date_range):
 
 #SURVEY ANALYSIS STARTS HERE
 
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional, Union
+
 
 class SurveyAnalyzer:
     def __init__(self, survey_id):
         self.survey_id = survey_id
         self.responses = self._load_responses()
+        self.questions_map = None  # Will be populated by _load_responses
     
     def _load_responses(self):
-        # Load all responses for the specific survey
+        """
+        Load all responses grouped by questions for the specific survey
+        Returns both the flat list of responses and a question-response mapping
+        """
+        # Get all questions for this survey
+        questions = Question.query.filter_by(survey_id=self.survey_id).all()
+        
+        # Create a mapping of questions to their responses
+        self.questions_map = {question.id: {
+            'question': question,
+            'responses': question.responses
+        } for question in questions}
+        
+        # Also maintain the flat list of responses for backward compatibility
         return QResponses.query.join(Question).filter(Question.survey_id == self.survey_id).all()
     
-    def _get_openai_analysis(self, prompt: str, custom_prompt: str = '', max_tokens: int = 1000) -> str:
+    def _calculate_token_estimate(self, text: str) -> int:
         """
-        Generic method to get OpenAI analysis in paragraph format
+        Estimate the number of tokens in a text string.
+        This is a rough estimate - about 4 characters per token for English text.
         """
+        return len(text) // 4
 
-        try:
+    def _safely_truncate_list(self, items: List[str], max_items: int = 10) -> List[str]:
+        """Safely get a subset of items"""
+        if len(items) > max_items:
+            return items[:max_items]
+        return items
+
+    def _safely_truncate_text(self, text: str, max_chars: int = 200) -> str:
+        """Safely truncate text to maximum character length"""
+        if len(text) > max_chars:
+            return text[:max_chars-3] + "..."
+        return text
+
+    def question_specific_analysis(self, question_id: int, custom_prompt: str = '') -> Dict[str, Any]:
+        """
+        Analyze responses with extreme token limitations and strict sampling
+        """
+        if not self.questions_map or question_id not in self.questions_map:
+            return {'error': 'Question not found'}
+            
+        question_data = self.questions_map[question_id]
+        question = question_data['question']
+        all_responses = question_data['responses']
+        total_responses = len(all_responses)
         
-            full_prompt = prompt
-            if custom_prompt:
-                full_prompt += f"\n\nAdditional Custom Guidance: {custom_prompt}"
+        # Take a very small random sample for large datasets
+        import random
+        sample_size = min(30, total_responses)  # Maximum 30 responses
+        sampled_responses = random.sample(all_responses, sample_size) if total_responses > 30 else all_responses
+        
+        # Process in very small batches of 5
+        batch_size = 5
+        batches = []
+        
+        for i in range(0, len(sampled_responses), batch_size):
+            batch = sampled_responses[i:i + batch_size]
+            
+            # Truncate each response text severely
+            truncated_responses = [
+                self._safely_truncate_text(r.response_text, 100)  # Only 100 chars per response
+                for r in batch
+            ]
+            
+            # Ultra-minimal prompt for each batch
+            prompt = f"""Q: "{self._safely_truncate_text(question.text, 50)}"
+Sample of {len(truncated_responses)} responses from total {total_responses}:
+{json.dumps(truncated_responses)}
+Brief analysis:"""
 
+            try:
+                batch_analysis = self._get_openai_analysis(prompt, max_tokens=300)
+                batches.append(batch_analysis)
+            except Exception as e:
+                print(f"Error in batch {i//batch_size + 1}: {str(e)}")
+                continue
+        
+        # Combine batch analyses with minimal overhead
+        if len(batches) > 1:
+            summary_prompt = f"Merge {len(batches)} analyses of {total_responses} total responses:\n{' '.join(batches)}"
+            try:
+                final_analysis = self._get_openai_analysis(summary_prompt, max_tokens=400)
+            except Exception as e:
+                final_analysis = f"Error in final synthesis: {str(e)}"
+        else:
+            final_analysis = batches[0] if batches else "No analysis available"
+
+        return {
+            'analysis': final_analysis,
+            'question_info': {
+                'text': self._safely_truncate_text(question.text, 50),
+                'type': question.question_type,
+                'total_responses': total_responses,
+                'analyzed_responses': sample_size,
+                'sampling_rate': f"{(sample_size/total_responses)*100:.1f}%"
+            }
+        }
+
+    def _get_openai_analysis(self, prompt: str, max_tokens: int = 300) -> str:
+        """
+        Minimal OpenAI analysis with very strict token limits
+        """
+        try:
             response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
                 messages=[
                     {
                         "role": "system", 
-                        "content": "You are a professional research analyst. Provide a comprehensive, insightful analysis in well-structured, flowing paragraphs. Do not give any JSON stuctures in your response. Use a clear, academic tone. Avoid bullet points and instead write in complete, flowing sentences."
+                        "content": "Brief analysis only."
+                    },
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=max_tokens
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            return f"Error in OpenAI analysis: {str(e)}"
+
+    def _get_openai_analysis(self, prompt: str, max_tokens: int = 500) -> str:
+        """
+        Minimal OpenAI analysis with strict token limits
+        """
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {
+                        "role": "system", 
+                        "content": "You are an analyst. Provide brief, clear analysis in bullet points. be specific in terms locations, reponses to specific questions."
+                    },
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=max_tokens
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            return f"Error in OpenAI analysis: {str(e)}"
+
+    def _analyze_response_chunk(self, responses: List[str], context: str, custom_prompt: str = '') -> str:
+        """
+        Analyze a chunk of responses with proper context management
+        """
+        # Take only first 50 words of each response for summary
+        summarized_responses = []
+        for response in responses:
+            words = response.split()
+            if len(words) > 50:
+                summarized_response = ' '.join(words[:50]) + "..."
+            else:
+                summarized_response = response
+            summarized_responses.append(summarized_response)
+
+        prompt = f"""{context}
+
+Analyze the following subset of {len(responses)} responses:
+
+Responses: {json.dumps(summarized_responses)}
+
+{custom_prompt if custom_prompt else ''}
+
+Provide a clear analysis focusing on:
+1. Main themes and patterns
+2. Notable insights
+3. Response quality and depth
+4. Key findings"""
+
+        return self._get_openai_analysis(prompt, max_tokens=1000)
+
+    def question_specific_analysis(self, question_id: int, custom_prompt: str = '') -> Dict[str, Any]:
+        """
+        Analyze responses for a specific question with detailed breakdowns
+        """
+        if not self.questions_map or question_id not in self.questions_map:
+            return {'error': 'Question not found'}
+            
+        question_data = self.questions_map[question_id]
+        question = question_data['question']
+        responses = question_data['responses']
+        
+        # If we have too many responses, take a representative sample
+        if len(responses) > 200:
+            import random
+            responses = random.sample(responses, 200)
+        
+        response_texts = [r.response_text for r in responses]
+        
+        # Prepare response metadata (simplified for token management)
+        response_metadata = {
+            'input_methods': {},
+            'languages': {},
+            'locations': {}
+        }
+        
+        for response in responses:
+            if response.response_type:
+                response_metadata['input_methods'][response.response_type] = response_metadata['input_methods'].get(response.response_type, 0) + 1
+            if response.language:
+                response_metadata['languages'][response.language] = response_metadata['languages'].get(response.language, 0) + 1
+            if response.location:
+                response_metadata['locations'][response.location] = response_metadata['locations'].get(response.location, 0) + 1
+
+        # Create concise analysis context
+        context = f"""Analyzing question: "{question.text}"
+Type: {question.question_type}
+Input Method: {question.input_method}
+Total Responses: {len(responses)}"""
+
+        # Break responses into smaller chunks
+        response_chunks = self._chunk_responses(response_texts, max_tokens=2000)
+        
+        # Analyze each chunk
+        chunk_analyses = []
+        for i, chunk in enumerate(response_chunks):
+            chunk_context = f"{context}\nAnalyzing subset {i+1} of {len(response_chunks)}"
+            chunk_analysis = self._analyze_response_chunk(chunk, chunk_context, custom_prompt)
+            chunk_analyses.append(chunk_analysis)
+        
+        # If we have multiple chunks, combine them with a simpler prompt
+        if len(chunk_analyses) > 1:
+            summary_prompt = f"""Synthesize these {len(chunk_analyses)} analysis segments into a unified summary:
+
+{' '.join(chunk_analyses)}
+
+Provide a clear, coherent summary of the key findings."""
+
+            final_analysis = self._get_openai_analysis(summary_prompt, max_tokens=1000)
+        else:
+            final_analysis = chunk_analyses[0]
+
+        return {
+            'analysis': final_analysis,
+            'question_info': {
+                'text': question.text,
+                'type': question.question_type,
+                'input_method': question.input_method,
+                'total_responses': len(responses),
+                'metadata': response_metadata
+            }
+        }
+
+    def _get_openai_analysis(self, prompt: str, custom_prompt: str = '', max_tokens: int = 1000) -> str:
+        """
+        Generic method to get OpenAI analysis in paragraph format with token management
+        """
+        try:
+            full_prompt = prompt
+            if custom_prompt:
+                full_prompt += f"\n\nAdditional Custom Guidance: {custom_prompt}"
+
+            # Estimate tokens in the prompt
+            prompt_tokens = self._calculate_token_estimate(full_prompt)
+            
+            # Adjust max_tokens if prompt is too large
+            available_tokens = 4000 - prompt_tokens  # 4000 is typical context limit
+            if available_tokens < max_tokens:
+                max_tokens = max(available_tokens - 100, 100)  # Leave some buffer
+            
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {
+                        "role": "system", 
+                        "content": "You are a professional research analyst. Provide a short concise analysis in bellet points but specific data. Do not give any JSON stuctures in your response. Use a clear, academic tone. Use summaries, charts, data and bullet points."
                     },
                     {"role": "user", "content": full_prompt}
                 ],
@@ -6400,9 +7144,106 @@ class SurveyAnalyzer:
             return response.choices[0].message.content.strip()
         except Exception as e:
             return f"Error in OpenAI analysis: {str(e)}"
+
+    def _analyze_response_chunk(self, responses: List[str], context: str, custom_prompt: str = '') -> str:
+        """
+        Analyze a chunk of responses with proper context
+        """
+        prompt = f"""{context}
+
+Analyze the following subset of responses:
+
+Responses: {json.dumps(responses)}
+
+{custom_prompt if custom_prompt else ''}"""
+
+        return self._get_openai_analysis(prompt, max_tokens=1500)
+
+    def question_specific_analysis(self, question_id: int, custom_prompt: str = '') -> Dict[str, Any]:
+        """
+        Analyze responses for a specific question with detailed breakdowns
+        """
+        if not self.questions_map or question_id not in self.questions_map:
+            return {'error': 'Question not found'}
+            
+        question_data = self.questions_map[question_id]
+        question = question_data['question']
+        responses = question_data['responses']
+        response_texts = [r.response_text for r in responses]
+        
+        # Prepare response metadata
+        response_metadata = {
+            'input_methods': {},
+            'response_lengths': [],
+            'languages': {},
+            'locations': {},
+            'timestamps': []
+        }
+        
+        for response in responses:
+            response_metadata['input_methods'][response.response_type] = response_metadata['input_methods'].get(response.response_type, 0) + 1
+            response_metadata['response_lengths'].append(len(response.response_text))
+            if response.language:
+                response_metadata['languages'][response.language] = response_metadata['languages'].get(response.language, 0) + 1
+            if response.location:
+                response_metadata['locations'][response.location] = response_metadata['locations'].get(response.location, 0) + 1
+            if response.timestamp:
+                response_metadata['timestamps'].append(response.timestamp.isoformat())
+
+        # Create analysis context
+        context = f"""Question Analysis Context:
+Question: "{question.text}"
+Type: {question.question_type}
+Input Method: {question.input_method}
+Total Responses: {len(responses)}
+Response Statistics:
+- Average Length: {sum(response_metadata['response_lengths']) / len(responses) if responses else 0:.2f} characters
+- Input Methods: {json.dumps(response_metadata['input_methods'])}
+- Languages: {json.dumps(response_metadata['languages'])}
+- Locations: {json.dumps(response_metadata['locations'])}"""
+
+        # Break responses into manageable chunks
+        response_chunks = self._chunk_responses(response_texts)
+        
+        # Analyze each chunk
+        chunk_analyses = []
+        for i, chunk in enumerate(response_chunks):
+            chunk_context = f"{context}\n\nAnalyzing response subset {i+1} of {len(response_chunks)}"
+            chunk_analysis = self._analyze_response_chunk(chunk, chunk_context, custom_prompt)
+            chunk_analyses.append(chunk_analysis)
+        
+        # Combine analyses if multiple chunks
+        if len(chunk_analyses) > 1:
+            combined_prompt = f"""Synthesize the following chunk analyses into a cohesive summary:
+
+Analyses:
+{json.dumps(chunk_analyses)}
+
+Create a comprehensive, unified analysis that captures the key insights from all chunks."""
+
+            final_analysis = self._get_openai_analysis(combined_prompt, max_tokens=2000)
+        else:
+            final_analysis = chunk_analyses[0]
+
+        return {
+            'analysis': final_analysis,
+            'question_info': {
+                'text': question.text,
+                'type': question.question_type,
+                'input_method': question.input_method,
+                'stats': {
+                    'total_responses': len(responses),
+                    'average_length': sum(response_metadata['response_lengths']) / len(responses) if responses else 0,
+                    'max_length': max(response_metadata['response_lengths']) if responses else 0,
+                    'min_length': min(response_metadata['response_lengths']) if responses else 0,
+                    'unique_languages': len(response_metadata['languages']),
+                    'unique_locations': len(response_metadata['locations'])
+                },
+                'metadata': response_metadata
+            }
+        }
     
     def sentiment_analysis(self, custom_prompt: str = '') -> Dict[str, Any]:
-
         """
         Perform sentiment analysis using OpenAI
         """
@@ -6420,10 +7261,10 @@ Provide a detailed analysis that covers:
 - Nuanced insights into the respondents' emotional landscape
 - Potential implications of the observed sentiment patterns
 
-Write a thoroughly researched analysis in 5 to 10 paragraphs, offering deep, contextual understanding of the emotional content."""
+Use bullet points and be concise, offering deep, contextual understanding of the emotional content."""
 
         return {
-            'analysis': self._get_openai_analysis(prompt,custom_prompt, max_tokens=1500)
+            'analysis': self._get_openai_analysis(prompt, custom_prompt, max_tokens=1500)
         }
     
     def theme_extraction(self) -> Dict[str, Any]:
@@ -6444,7 +7285,7 @@ Your analysis should:
 - Offer profound insights into what these themes reveal about the respondents
 - Discuss the broader contextual significance of these themes
 
-Compose a comprehensive, scholarly analysis in 5-10 well-structured paragraphs that reveals the deeper narrative within the responses."""
+Use bullet points and be concise. Use data and mention data that reveals the deeper narrative within the responses."""
 
         return {
             'analysis': self._get_openai_analysis(prompt, max_tokens=2000)
@@ -6470,7 +7311,7 @@ Develop a sophisticated analysis that:
 - Interprets the broader sociological implications of the demographic composition
 - Offers insights into how demographic factors might influence response patterns
 
-Present your findings in a scholarly, analytically rigorous format of 5 to 10 paragraphs."""
+Use concise data and bullet points."""
 
         return {
             'analysis': self._get_openai_analysis(prompt, custom_prompt, max_tokens=1500)
@@ -6502,7 +7343,7 @@ Your analysis should:
 - Discuss the geographical context of the survey participants
 - Offer insights into how location might influence response characteristics
 
-Compose a sophisticated analysis in 5-10 paragraphs that goes beyond surface-level observations."""
+Be concise and use bullet points and summaries and numbers."""
 
         return {
             'analysis': self._get_openai_analysis(prompt, custom_prompt, max_tokens=1500)
@@ -6532,7 +7373,7 @@ Your comprehensive analysis should:
 - Explore how language might reflect underlying cultural or contextual insights
 - Provide a sophisticated interpretation of the linguistic landscape
 
-Present your findings in a scholarly, analytically nuanced format of 5-10 paragraphs."""
+Be concise, brief and use summaries and bullet points and numbers."""
 
         return {
             'analysis': self._get_openai_analysis(prompt, custom_prompt, max_tokens=2000)
@@ -6567,7 +7408,265 @@ Your analysis should:
 Develop a comprehensive, scholarly analysis in 5-10 paragraphs that reveals the complex narrative within the data."""
 
         return {
-            'analysis': self._get_openai_analysis(prompt, custom_prompt,max_tokens=2000)
+            'analysis': self._get_openai_analysis(prompt, custom_prompt, max_tokens=2000)
+        }
+
+    def list_questions(self) -> List[Dict[str, Any]]:
+        """
+        Get a list of all questions and their basic response statistics
+        """
+        if not self.questions_map:
+            return []
+            
+        questions_list = []
+        for q_id, data in self.questions_map.items():
+            question = data['question']
+            responses = data['responses']
+            
+            questions_list.append({
+                'id': q_id,
+                'text': question.text,
+                'type': question.question_type,
+                'input_method': question.input_method,
+                'response_count': len(responses),
+                'created_at': question.created_at.isoformat() if question.created_at else None
+            })
+            
+        return sorted(questions_list, key=lambda x: x['created_at'] or '')
+
+    def question_specific_analysis(self, question_id: int, custom_prompt: str = '') -> Dict[str, Any]:
+        """
+        Analyze responses for a specific question with detailed breakdowns
+        """
+        if not self.questions_map or question_id not in self.questions_map:
+            return {'error': 'Question not found'}
+            
+        question_data = self.questions_map[question_id]
+        question = question_data['question']
+        responses = question_data['responses']
+            
+        responses = question.responses
+        question_responses = [r.response_text for r in responses]
+        
+        # Collect metadata about responses
+        response_metadata = {
+            'input_methods': {},  # Count of each input method
+            'response_lengths': [],  # List of response lengths
+            'languages': {},  # Count of each language
+            'locations': {},  # Count of each location
+            'timestamps': []  # List of timestamps for temporal analysis
+        }
+        
+        for response in responses:
+            # Input method tracking
+            response_metadata['input_methods'][response.response_type] = response_metadata['input_methods'].get(response.response_type, 0) + 1
+            
+            # Response length analysis
+            response_metadata['response_lengths'].append(len(response.response_text))
+            
+            # Language distribution
+            if response.language:
+                response_metadata['languages'][response.language] = response_metadata['languages'].get(response.language, 0) + 1
+            
+            # Geographic distribution
+            if response.location:
+                response_metadata['locations'][response.location] = response_metadata['locations'].get(response.location, 0) + 1
+            
+            # Temporal data
+            if response.timestamp:
+                response_metadata['timestamps'].append(response.timestamp.isoformat())
+
+        prompt = f"""Perform a comprehensive analysis of responses to the question: "{question.text}"
+
+Question Details:
+- Type: {question.question_type}
+- Input Method: {question.input_method}
+- Total Responses: {len(question_responses)}
+
+Response Data:
+Responses: {json.dumps(question_responses)}
+Input Method Distribution: {json.dumps(response_metadata['input_methods'])}
+Language Distribution: {json.dumps(response_metadata['languages'])}
+Geographic Distribution: {json.dumps(response_metadata['locations'])}
+
+Provide a detailed analysis that covers:
+
+1. Response Quality:
+- Evaluate the overall quality and depth of responses
+- Analyze response lengths and comprehensiveness
+- Identify exemplary and problematic responses
+
+2. Pattern Analysis:
+- Identify recurring themes and patterns
+- Analyze variations based on input method
+- Explore geographic or linguistic patterns in responses
+
+3. Technical Analysis:
+- Assess how the question type influenced responses
+- Evaluate the effectiveness of different input methods
+- Analyze response completeness and validity
+
+4. Demographic Insights:
+- Analyze variations across different regions
+- Examine language-specific patterns
+- Identify any demographic-specific trends
+
+5. Recommendations:
+- Suggest improvements to question structure
+- Propose potential follow-up questions
+- Recommend optimizations for data collection
+
+Be concise, brief and use bullet points, summaries and numbers. """
+
+        # Calculate basic statistics
+        basic_stats = {
+            'total_responses': len(responses),
+            'average_length': sum(response_metadata['response_lengths']) / len(responses) if responses else 0,
+            'max_length': max(response_metadata['response_lengths']) if responses else 0,
+            'min_length': min(response_metadata['response_lengths']) if responses else 0,
+            'unique_languages': len(response_metadata['languages']),
+            'unique_locations': len(response_metadata['locations'])
+        }
+
+        return {
+            'analysis': self._get_openai_analysis(prompt, custom_prompt, max_tokens=2000),
+            'question_info': {
+                'text': question.text,
+                'type': question.question_type,
+                'input_method': question.input_method,
+                'stats': basic_stats,
+                'metadata': response_metadata
+            }
+        }
+        
+    def analyze_multiple_choice_responses(self, question_id: int) -> Dict[str, Any]:
+        """
+        Specific analysis for multiple choice questions
+        """
+        question = Question.query.get(question_id)
+        if not question or question.question_type != "MULTIPLE_CHOICE":
+            return {'error': 'Not a multiple choice question'}
+            
+        # Get response distribution
+        responses = question.responses
+        options = question.options
+        
+        # Create option mapping
+        option_map = {opt.id: opt.text for opt in options}
+        
+        # Count responses for each option
+        response_counts = {}
+        for response in responses:
+            option_text = option_map.get(int(response.response_text), 'Other')
+            response_counts[option_text] = response_counts.get(option_text, 0) + 1
+            
+        prompt = f"""Analyze the following multiple choice response distribution:
+
+Question: "{question.text}"
+Total Responses: {len(responses)}
+Option Distribution: {json.dumps(response_counts)}
+
+Provide an analysis that:
+- Interprets the distribution of responses
+- Identifies clear preferences or patterns
+- Analyzes potential reasons for the observed distribution
+- Suggests implications of these response patterns
+- Recommends potential follow-up questions or modifications
+
+Use numbers, be concise, brief and use bullet points."""
+
+        return {
+            'analysis': self._get_openai_analysis(prompt, max_tokens=1500),
+            'distribution': response_counts,
+            'total_responses': len(responses)
+        }
+
+    def analyze_response_quality(self, question_id: int) -> Dict[str, Any]:
+        """
+        Analyze the quality of responses for a specific question
+        """
+        question = Question.query.get(question_id)
+        if not question:
+            return {'error': 'Question not found'}
+            
+        responses = question.responses
+        response_texts = [r.response_text for r in responses]
+        
+        # Calculate response metrics
+        response_metrics = {
+            'lengths': [len(r) for r in response_texts],
+            'word_counts': [len(r.split()) for r in response_texts],
+            'unique_words': len(set(' '.join(response_texts).split())),
+        }
+        
+        prompt = f"""Evaluate the quality of responses for the question: "{question.text}"
+
+Response Metrics:
+- Total Responses: {len(responses)}
+- Average Length: {sum(response_metrics['lengths']) / len(responses) if responses else 0}
+- Average Word Count: {sum(response_metrics['word_counts']) / len(responses) if responses else 0}
+- Unique Words Used: {response_metrics['unique_words']}
+
+Sample Responses: {json.dumps(response_texts[:5])}
+
+Provide a detailed analysis of:
+- Overall response quality and completeness
+- Response depth and sophistication
+- Vocabulary diversity and complexity
+- Common response patterns
+- Areas for quality improvement
+
+Be concise, brief. Use numbers, data, summaries and bullet points"""
+
+        return {
+            'analysis': self._get_openai_analysis(prompt, max_tokens=1500),
+            'metrics': response_metrics
+        }
+
+    def compare_input_methods(self, question_id: int) -> Dict[str, Any]:
+        """
+        Compare responses based on different input methods
+        """
+        question = Question.query.get(question_id)
+        if not question:
+            return {'error': 'Question not found'}
+            
+        # Group responses by input method
+        responses_by_method = {}
+        for response in question.responses:
+            method = response.response_type or 'unknown'
+            if method not in responses_by_method:
+                responses_by_method[method] = []
+            responses_by_method[method].append(response.response_text)
+            
+        # Calculate metrics for each method
+        method_metrics = {}
+        for method, responses in responses_by_method.items():
+            method_metrics[method] = {
+                'count': len(responses),
+                'avg_length': sum(len(r) for r in responses) / len(responses) if responses else 0,
+                'avg_words': sum(len(r.split()) for r in responses) / len(responses) if responses else 0
+            }
+            
+        prompt = f"""Compare responses across different input methods for the question: "{question.text}"
+
+Input Method Metrics: {json.dumps(method_metrics)}
+
+Sample Responses by Method:
+{json.dumps({method: responses[:3] for method, responses in responses_by_method.items()})}
+
+Analyze:
+- Response quality differences between input methods
+- Patterns specific to each input method
+- Advantages and limitations of each method
+- Recommendations for optimal input method selection
+- Potential improvements for each input method
+
+Be concise, use bullet points and summaries and data."""
+
+        return {
+            'analysis': self._get_openai_analysis(prompt, max_tokens=1500),
+            'metrics': method_metrics
         }
 
 @app.route('/survey-analysis')
@@ -6576,7 +7675,6 @@ def survey_analysis():
     Render the survey analysis page
     """
     return render_template('survey_analysis.html')
-
 
 @app.route('/api/surveys', methods=['GET'])
 def get_surveys():
@@ -6601,15 +7699,37 @@ def get_surveys():
         print(f"Error in get_surveys: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/survey/<int:survey_id>/questions', methods=['GET'], endpoint='get_survey_question_list')
+def get_survey_questions(survey_id):
+    """
+    Get all questions for a specific survey with their response statistics
+    """
+    try:
+        analyzer = SurveyAnalyzer(survey_id)
+        questions = analyzer.list_questions()
+        
+        return jsonify({
+            'success': True,
+            'questions': questions
+        })
+    except Exception as e:
+        app.logger.error(f"Error getting survey questions: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/analyze-survey', methods=['POST'])
 def analyze_survey():
     data = request.json
     survey_id = data.get('surveyId')
     analysis_type = data.get('analysisType')
     custom_prompt = data.get('customPrompt', '')
+    question_id = data.get('questionId')
 
     if not survey_id or not analysis_type:
         return jsonify({'error': 'Missing survey ID or analysis type'}), 400
+        
+    # For question-based analysis, ensure question_id is provided
+    if analysis_type in ['question_specific', 'multiple_choice', 'response_quality', 'input_method_comparison'] and not question_id:
+        return jsonify({'error': 'Missing question ID for question-based analysis'}), 400
 
     try:
         analyzer = SurveyAnalyzer(survey_id)
@@ -6621,29 +7741,484 @@ def analyze_survey():
             'demographic_insights': analyzer.demographic_insights,
             'geographic_distribution': analyzer.geographic_distribution,
             'language_analysis': analyzer.language_analysis,
-            'correlation_analysis': analyzer.correlation_analysis
+            'correlation_analysis': analyzer.correlation_analysis,
+            'question_specific': lambda: analyzer.question_specific_analysis(question_id, custom_prompt),
+            'multiple_choice': lambda: analyzer.analyze_multiple_choice_responses(question_id),
+            'response_quality': lambda: analyzer.analyze_response_quality(question_id),
+            'input_method_comparison': lambda: analyzer.compare_input_methods(question_id)
         }
 
-        # Perform selected analysis
         if analysis_type not in analysis_methods:
             return jsonify({'error': 'Invalid analysis type'}), 400
 
-        # Pass custom prompt to the analysis method
-        results = analysis_methods[analysis_type](custom_prompt)
+        # For question-specific analysis, ensure question_id is provided
+        if analysis_type == 'question_specific' and not question_id:
+            return jsonify({'error': 'Missing question ID for question-specific analysis'}), 400
+
+        # Perform selected analysis
+        results = analysis_methods[analysis_type]()
 
         return jsonify({
             'success': True,
             'total_responses': len(analyzer.responses),
-            'analysis': results.get('analysis', 'No analysis available')
+            'analysis': results.get('analysis', 'No analysis available'),
+            'additional_data': results.get('question_info') if analysis_type == 'question_specific' else None
         })
 
     except Exception as e:
-        # Log the error for debugging
         app.logger.error(f"Analysis error: {str(e)}")
         return jsonify({
             'success': False, 
             'error': f'An error occurred during analysis: {str(e)}'
         }), 500
+
+#TWILIO
+import os
+import openai
+import requests
+from flask import Flask, request, jsonify
+from twilio.rest import Client
+from twilio.twiml.voice_response import VoiceResponse
+from datetime import datetime
+import uuid
+import json
+
+
+
+class IncidentReportingSystem:
+    def __init__(self):
+        # Twilio Configuration
+        self.twilio_account_sid = "AC93e6456bc3439c7c0e028571322c5853"
+        self.twilio_auth_token = "16d3346ec62a9b34c87893fa7e3f8765"
+        self.twilio_phone_number = "+18148301099"
+        self.twilio_client = Client(self.twilio_account_sid, self.twilio_auth_token)
+
+    def get_caller_location(self, phone_number):
+        """
+        Get caller's location information
+        """
+        try:
+            # Remove any formatting from the phone number
+            cleaned_number = phone_number.replace('-', '').replace(' ', '')
+            
+            # Use Twilio Lookup API to get carrier info
+            lookup = self.twilio_client.lookups.v2.phone_numbers(cleaned_number).fetch(
+                fields=['carrier']
+            )
+            
+            carrier_data = lookup.carrier
+            if carrier_data:
+                location_info = {
+                    'country': carrier_data.get('country', ''),
+                    'name': carrier_data.get('name', ''),
+                    'type': carrier_data.get('type', ''),
+                    'mobile_country_code': carrier_data.get('mobile_country_code', ''),
+                    'mobile_network_code': carrier_data.get('mobile_network_code', '')
+                }
+                print(f"Location info retrieved: {location_info}")
+                return location_info
+            return None
+        except Exception as e:
+            print(f"Error getting caller location: {e}")
+            traceback.print_exc()
+            return None
+
+    def download_recording(self, recording_url):
+        """
+        Download Twilio call recording
+        """
+        try:
+            # Construct the correct recording URL
+            base_url = recording_url.split('://')[1]
+            authenticated_url = f"https://{self.twilio_account_sid}:{self.twilio_auth_token}@{base_url}"
+            
+            print(f"Attempting to download from URL: {authenticated_url}")
+            
+            # Download the recording
+            response = requests.get(authenticated_url)
+            
+            if response.status_code != 200:
+                print(f"Failed to download recording. Status code: {response.status_code}")
+                return None
+            
+            # Create a unique filename
+            filename = f"recordings/{uuid.uuid4()}.mp3"
+            
+            # Ensure recordings directory exists
+            os.makedirs('recordings', exist_ok=True)
+            
+            # Save the recording
+            with open(filename, 'wb') as f:
+                f.write(response.content)
+            
+            print(f"Successfully downloaded recording to {filename}")
+            return filename
+        except Exception as e:
+            print(f"Error downloading recording: {e}")
+            traceback.print_exc()
+            return None
+
+    def transcribe_recording(self, recording_path):
+        """
+        Transcribe audio recording using OpenAI Whisper
+        """
+        try:
+            with open(recording_path, "rb") as audio_file:
+                transcription = openai.Audio.transcribe("whisper-1", audio_file)
+                print(f"Transcription successful: {transcription['text'][:100]}...")
+                return transcription['text']
+        except Exception as e:
+            print(f"Transcription error: {e}")
+            traceback.print_exc()
+            return None
+
+    def classify_incident(self, transcription):
+        """
+        Use OpenAI to classify and extract incident details
+        """
+        try:
+            prompt = f"""Analyze the following emergency call transcription and extract key incident details:
+
+Transcription: {transcription}
+
+Provide a detailed analysis including:
+1. Incident type and subtype
+2. Location details (address and coordinates if mentioned)
+3. People involved (complainant and defendant if applicable)
+4. Damage assessment (monetary estimate if possible)
+5. For agricultural incidents: affected crops and field observations
+6. Recommended actions and authorities to involve
+7. Additional notes and observations
+
+Please structure the response as a JSON with these exact keys:
+- incident_type (string): Main category of the incident
+- type (string): Specific subtype of the incident
+- location (string): Detailed location description
+- latitude (float): Latitude coordinate if mentioned
+- longitude (float): Longitude coordinate if mentioned
+- complainant (string): Name of the person reporting
+- defendant (string): Name of the person being reported (if applicable)
+- damage_estimate (float): Estimated monetary value of damage
+- crops_affected (string): Description of affected crops if agricultural
+- actionpoints (string): List of immediate actions to take
+- notes (string): Additional observations
+- recommendation (string): Long-term recommendations
+- field_notes (string): Specific field observations
+- tag (string): Urgency level (high/medium/low)
+- assigned_authorities (array): List of authorities to be notified"""
+
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {
+                        "role": "system", 
+                        "content": "You are an emergency response classifier. Carefully analyze emergency call transcripts and extract critical information."
+                    },
+                    {
+                        "role": "user", 
+                        "content": prompt
+                    }
+                ],
+                response_format={"type": "json_object"}
+            )
+
+            incident_details = json.loads(response.choices[0].message.content)
+            print(f"Successfully classified incident: {incident_details['incident_type']}")
+            return incident_details
+        except Exception as e:
+            print(f"Incident classification error: {e}")
+            traceback.print_exc()
+            return None
+
+    def create_incident_record(self, incident_details, call_data):
+        """
+        Create a new incident record in the database with location data
+        """
+        try:
+            # Get location data from either caller info or incident details
+            location_info = call_data.get('location_info', {})
+            
+            new_incident = Incident(
+                category=incident_details.get('incident_type', 'Unclassified'),
+                type=incident_details.get('type', 'General'),
+                location=incident_details.get('location', 'Unknown'),
+                report_text=incident_details.get('notes', ''),
+                media_path=call_data.get('recording_url', ''),
+                timestamp=datetime.utcnow(),
+                caller_name=call_data.get('caller_name', 'Anonymous'),
+                contact_number=call_data.get('phone_number', ''),
+                complainant=incident_details.get('complainant', ''),
+                defendant=incident_details.get('defendant', ''),
+                
+                # Location data
+                latitude=incident_details.get('latitude') or call_data.get('latitude'),
+                longitude=incident_details.get('longitude') or call_data.get('longitude'),
+                
+                damage_estimate=incident_details.get('damage_estimate', 0.0),
+                crops_affected=incident_details.get('crops_affected', ''),
+                recommendation=incident_details.get('recommendation', ''),
+                field_notes=incident_details.get('field_notes', ''),
+                actionpoints=incident_details.get('actionpoints', ''),
+                notes=incident_details.get('notes', ''),
+                tag=incident_details.get('tag', 'normal'),
+                assigned_authorities=json.dumps(incident_details.get('assigned_authorities', [])),
+                user_id=1,
+                openai_analysis=json.dumps({
+                    **incident_details,
+                    'caller_location': location_info
+                }),
+                language='en'
+            )
+            
+            db.session.add(new_incident)
+            db.session.commit()
+            
+            print(f"Successfully created incident record with ID: {new_incident.id}")
+            
+            # Send notifications
+            self.send_notifications(new_incident)
+
+            return new_incident
+        except Exception as e:
+            print(f"Incident creation error: {e}")
+            traceback.print_exc()
+            db.session.rollback()
+            return None
+
+    def send_notifications(self, incident):
+        """
+        Send notifications via multiple channels
+        """
+        try:
+            # Format the notification message with location
+            location_info = f"GPS: {incident.latitude}, {incident.longitude}" if incident.latitude and incident.longitude else incident.location
+            message = (
+                f"New {incident.category} Incident\n"
+                f"Location: {location_info}\n"
+                f"Type: {incident.type}\n"
+                f"Action Required: {incident.actionpoints[:100]}..."
+            )
+            
+            # SMS Notification via Twilio
+            self.twilio_client.messages.create(
+                body=message,
+                from_=self.twilio_phone_number,
+                to="+639498877437"  # Update with your notification number
+            )
+            print(f"Successfully sent notification for incident {incident.id}")
+        except Exception as e:
+            print(f"Notification error: {e}")
+            traceback.print_exc()
+
+    def handle_incoming_call(self, call_sid):
+        """
+        Process an incoming emergency call with location tracking
+        """
+        try:
+            # Add delay to wait for recording to be ready
+            time.sleep(5)
+            
+            # Get call details
+            call = self.twilio_client.calls(call_sid).fetch()
+            print(f"Call Status: {call.status}")
+            
+            # Get caller's phone number and location
+            caller_number = call.from_formatted
+            location_info = self.get_caller_location(caller_number)
+            
+            call_data = {
+                'caller_name': getattr(call, 'caller_name', 'Anonymous'),
+                'phone_number': caller_number,
+                'call_sid': call_sid,
+                'location_info': location_info
+            }
+            
+            # Try to get location from call data
+            if hasattr(call, 'caller_info'):
+                call_data['latitude'] = call.caller_info.get('latitude')
+                call_data['longitude'] = call.caller_info.get('longitude')
+            
+            print(f"Caller Location Info: {location_info}")
+            
+            # List all recordings
+            recordings = self.twilio_client.recordings.list(call_sid=call_sid)
+            print(f"Number of recordings found: {len(recordings)}")
+            
+            if not recordings:
+                print(f"No recordings found for call {call_sid}")
+                return None
+                
+            # Get the most recent recording
+            recording = recordings[0]
+            print(f"Recording SID: {recording.sid}")
+            
+            # Construct the proper recording URL
+            recording_url = f"https://api.twilio.com/2010-04-01/Accounts/{self.twilio_account_sid}/Recordings/{recording.sid}.mp3"
+            call_data['recording_url'] = recording_url
+            print(f"Recording URL: {recording_url}")
+            
+            # Download the recording
+            recording_path = self.download_recording(recording_url)
+            
+            if not recording_path:
+                print("Failed to download recording")
+                return None
+
+            # Process recording
+            transcription = self.transcribe_recording(recording_path)
+            if not transcription:
+                print("Failed to transcribe recording")
+                return None
+
+            incident_details = self.classify_incident(transcription)
+            if not incident_details:
+                print("Failed to classify incident")
+                return None
+
+            # Create incident record with location data
+            incident = self.create_incident_record(incident_details, call_data)
+            
+            # Clean up recording file
+            try:
+                os.remove(recording_path)
+            except Exception as e:
+                print(f"Error removing recording file: {e}")
+
+            return incident
+
+        except Exception as e:
+            print(f"Error handling incoming call: {e}")
+            traceback.print_exc()
+            return None
+
+# Flask routes
+@app.route('/handle-call', methods=['POST'])
+def handle_incoming_call():
+    """
+    Process the recorded message and create incident
+    """
+    call_sid = request.form.get('CallSid')
+    print(f"Processing recording for CallSid: {call_sid}")
+    
+    incident_reporting_system = IncidentReportingSystem()
+    
+    try:
+        incident = incident_reporting_system.handle_incoming_call(call_sid)
+        
+        if incident:
+            response = VoiceResponse()
+            response.say(
+                f"Your incident has been logged with ID number {incident.id}. "
+                "Thank you for your report.",
+                voice='alice'
+            )
+            return str(response)
+        else:
+            response = VoiceResponse()
+            response.say(
+                "We encountered an issue processing your report. "
+                "Please try again or contact our support team.",
+                voice='alice'
+            )
+            return str(response)
+
+    except Exception as e:
+        print(f"Error in handle_incoming_call route: {e}")
+        traceback.print_exc()
+        response = VoiceResponse()
+        response.say(
+            "We encountered an error processing your report. "
+            "Please try again later.",
+            voice='alice'
+        )
+        return str(response)
+
+@app.route('/voice', methods=['POST'])
+def voice():
+    """
+    Handle initial voice response
+    """
+    response = VoiceResponse()
+    
+    print("Received voice call. Form data:", request.form)
+    
+    response.say(
+        "You have reached Ira Command Center. Please describe your incident after the beep. "
+        "Press star when you are finished reporting.",
+        voice='alice'
+    )
+    
+    response.record(
+        action='/handle-call',
+        method='POST',
+        maxLength=300,
+        timeout=5,
+        finishOnKey='*',
+        transcribe=False,
+        playBeep=True,
+        recordingStatusCallback='/recording-status',
+        recordingStatusCallbackMethod='POST'
+    )
+    
+    response.say(
+        "Thank you for your report. Your incident has been logged. "
+        "We will process this information and take appropriate action. "
+        "If this is an emergency requiring immediate assistance, "
+        "please stay on the line and you will be connected to emergency services.",
+        voice='alice'
+    )
+    
+    response.pause(length=2)
+    
+    with response.gather(
+        num_digits=1,
+        action='/emergency-transfer',
+        method='POST',
+        timeout=10
+    ) as gather:
+        gather.say(
+            "Press 1 if you need immediate emergency assistance. "
+            "Otherwise, hang up now.",
+            voice='alice'
+        )
+    
+    response.say("Thank you for your report. Goodbye.", voice='alice')
+    response.hangup()
+    
+    return str(response)
+
+@app.route('/emergency-transfer', methods=['POST'])
+def emergency_transfer():
+    """
+    Handle emergency transfer requests
+    """
+    response = VoiceResponse()
+    
+    digit_pressed = request.values.get('Digits', None)
+    
+    if digit_pressed == '1':
+        response.say(
+            "Transferring you to emergency services. Please stay on the line.",
+            voice='alice'
+        )
+        response.dial('+911')  # Update with actual emergency number
+    else:
+        response.say("Thank you for your report. Goodbye.", voice='alice')
+        response.hangup()
+    
+    return str(response)
+
+@app.route('/recording-status', methods=['POST'])
+def recording_status():
+    """
+    Handle recording status callbacks from Twilio
+    """
+    print("Recording status update received:")
+    print("Status:", request.form.get('RecordingStatus'))
+    print("Recording SID:", request.form.get('RecordingSid'))
+    print("Call SID:", request.form.get('CallSid'))
+    
+    return '', 200
     
 if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0', port=80)
+    app.run(debug=True, host='0.0.0.0', port=5000)

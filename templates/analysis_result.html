@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head><link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="{{ url_for('static', filename='js/scripts.js') }}" defer></script>
+    <title>Analysis Results</title>
+  
+</head>
+<body> <header>
+
+     
+    <nav>
+        <ul>
+            <li><a href="/dashboard">Home</a></li>
+            <li><a href="/dispatch">Dispatch</a></li>
+            <li><a href="/dashboard">Dashboard</a></li>
+            <li><a href="/reports">Reports</a></li>
+            <li><a href="/ai">Prediction</a></li>
+            <li><a href="/persons_of_interest">POI</a></li>
+            <li><a href="/map">Map View</a></li>
+
+        </ul>
+    </nav>
+</header>
+    <h1>Analysis Results</h1>
+    <div class="container">
+        <h2>Incidents</h2>
+        <ul>
+            {% for incident in incidents %}
+            <li>{{ incident.report_text }} ({{ incident.timestamp }})</li>
+            {% endfor %}
+        </ul>
+
+        <h2>AI Analysis</h2>
+        <p>{{ analysis }}</p>
+    </div>
+    <footer>
+        &copy; 2024 Incident Analysis Dashboard
+    </footer>
+</body>
+</html>

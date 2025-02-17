@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Map</title>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDSQPcdtaPMsPUK8kIj8TiyX-qZ25ky3_0&callback=initMap" async defer></script>
+    <style>
+        #map {
+            height: 500px;
+            width: 100%;
+        }
+        .incident-info {
+            font-size: 14px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <h1>Incident Map</h1>
+    <div id="map"></div>
+    <div id="incident-details"></div>
+
+    <script>
+        let map;
+
+        function initMap() {
+            // Initialize the map centered on a default location (adjust if needed)
+            map = new google.maps.Map(document.getElementById("map"), {
+                center: { lat: 	14.6098153, lng: 121.0418842 }, // Default to San Francisco
+                zoom: 10,
+            });
+
+            // Fetch incident data from the backend
+            fetch('/map_data')
+            
+                .then(response => response.json())
+                .then(incidents => {
+                    console.log(incidents);
+                    incidents.forEach(incident => {
+                        const marker = new google.maps.Marker({
+                            position: { lat: incident.latitude, lng: incident.longitude },
+                            map: map,
+                            title: incident.category
+                        });
+
+                        // Info window for displaying incident details
+                        const infoWindow = new google.maps.InfoWindow({
+                            content: `
+                                <div class="incident-info">
+                                    <strong>Category:</strong> ${incident.category}<br>
+                                    <strong>Location:</strong> ${incident.location}<br>
+                                    <strong>Timestamp:</strong> ${incident.timestamp}<br>
+                                    <strong>Report:</strong> ${incident.report_text}
+                                </div>
+                            `
+                        });
+
+                        // Open info window on marker click
+                        marker.addListener('click', () => {
+                            infoWindow.open(map, marker);
+                        });
+                    });
+                })
+                .catch(err => console.error("Error fetching incidents:", err));
+        }
+    </script>
+</body>
+</html>

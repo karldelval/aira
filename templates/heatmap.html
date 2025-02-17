@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heatmap of Sentiments and Similar Incident</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css' rel='stylesheet' />
+    <style>
+        #map-container {
+            position: relative;
+            height: 600px;
+            margin-bottom: 20px;
+        }
+        #map-2d, #map-3d {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        #map-3d { 
+            display: none; 
+        }
+        .map-controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .view-toggle {
+            margin: 5px;
+            padding: 8px 16px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .view-toggle:hover {
+            background: #45a049;
+        }
+        .view-toggle.active {
+            background: #357abd;
+        }
+        .response-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .response-table th, .response-table td {
+            padding: 10px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        .response-table th {
+            background-color: #f4f4f4;
+        }
+        .filter-container {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .mapboxgl-popup {
+            max-width: 300px;
+        }
+        .mapboxgl-popup-content {
+            padding: 15px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    {% include 'header.html' %}
+
+    <div style="display: flex; align-items: center;">
+        <h1>AIRA SENTIMENT HEAT MAP</h1>
+    </div>
+
+    <div class="filter-container">
+        <form method="POST" action="/heatmap">
+            <label for="question_id">Select Question:</label>
+            <select name="question_id" id="question_id">
+                {% for question in questions %}
+                    <option value="{{ question.id }}" {% if question.id == question_id %}selected{% endif %}>
+                        {{ question.text }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <label for="mode">Mode:</label>
+            <select name="mode" id="mode">
+                <option value="sentiment" {% if mode == 'sentiment' %}selected{% endif %}>Sentiment</option>
+                <option value="similarity" {% if mode == 'similarity' %}selected{% endif %}>Similarity</option>
+            </select>
+
+            <button type="submit">Submit</button>
+        </form>
+    </div>
+
+    <div id="map-container">
+        <div id="map-2d"></div>
+        <div id="map-3d"></div>
+        <div class="map-controls">
+            <button class="view-toggle active" id="2d-view">2D View</button>
+            <button class="view-toggle" id="3d-view">3D View</button>
+        </div>
+    </div>
+
+    <!-- Responses Table -->
+    <!-- Responses Table -->
+    <div>
+        <h3>Responses</h3>
+        <table class="response-table">
+            <thead>
+                <tr>
+                    <th style="color: black;">Response</th>
+                    <th style="color: black;">Location</th>
+                    <th style="color: black;">Latitude</th>
+                    <th style="color: black;">Longitude</th>
+                    <th style="color: black;">{{ "Sentiment" if mode == "sentiment" else "Similarity Group" }}</th>
+                    <th style="color: black;">Color Code</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for response in filtered_responses %}
+                    <tr>
+                        <td>{{ response.response_text }}</td>
+                        <td>{{ response.location }}</td>
+                        <td>{{ response.latitude }}</td>
+                        <td>{{ response.longitude }}</td>
+                        <td>
+                            {% if mode == "sentiment" %}
+                                {{ response.sentiment }}
+                            {% else %}
+                                {{ response.filter_value }}
+                            {% endif %}
+                        </td>
+                        <td style="background-color: {{ color_map[mode][response.filter_value] }};">
+                            {{ color_map[mode][response.filter_value] }}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js'></script>
+    <script>
+        let map2D, map3D, markers, currentView = '2d';
+        const CENTER_LAT = 14.6440;
+        const CENTER_LNG = 121.0320;
+        const ZOOM_LEVEL = 12;
+        
+        // Data and color configurations
+        const heatmapData = {{ heatmap_data | tojson }};
+        const mode = "{{ mode }}";
+        const colorMap = {
+            "sentiment": {
+                "positive": "green",
+                "negative": "red",
+                "neutral": "yellow"
+            },
+            "similarity": {
+                "group1": "blue", "group2": "green", "group3": "purple",
+                "group4": "orange", "group5": "pink", "group6": "green",
+                "group7": "yellow", "group8": "red", "group9": "brown", "group10": "grey"
+            }
+        };
+
+        function initializeMaps() {
+            // Initialize 2D map
+            map2D = L.map('map-2d', {
+                center: [CENTER_LAT, CENTER_LNG],
+                zoom: ZOOM_LEVEL,
+                maxZoom: 19
+            });
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map2D);
+
+            markers = L.markerClusterGroup({
+                showCoverageOnHover: false,
+                zoomToBoundsOnClick: false,
+                chunkedLoading: true,
+                spiderfyOnMaxZoom: true
+            });
+
+            // Initialize 3D map
+            mapboxgl.accessToken = 'pk.eyJ1IjoiamFzb25jZGVsYXJvc2EiLCJhIjoiY202MGd4ZXNyMDF2MDJpcTR4aHhqMGNvOSJ9.SVKcekxHU0w8-6AoRp9K9A';
+            map3D = new mapboxgl.Map({
+                container: 'map-3d',
+                style: 'mapbox://styles/mapbox/streets-v12',
+                center: [CENTER_LNG, CENTER_LAT],
+                zoom: ZOOM_LEVEL,
+                pitch: 60,
+                bearing: -17.6,
+                antialias: true
+            });
+
+            map3D.on('load', () => {
+                setupMap3DFeatures();
+                loadMarkersAndGeofences();
+            });
+
+            // Add navigation controls to 3D map
+            map3D.addControl(new mapboxgl.NavigationControl({
+                showCompass: true,
+                showZoom: true,
+                visualizePitch: true
+            }), 'top-right');
+        }
+
+        function setupMap3DFeatures() {
+            if (!map3D) return;
+
+            // Add 3D buildings
+            map3D.addLayer({
+                'id': '3d-buildings',
+                'source': 'composite',
+                'source-layer': 'building',
+                'filter': ['==', 'extrude', 'true'],
+                'type': 'fill-extrusion',
+                'minzoom': 15,
+                'paint': {
+                    'fill-extrusion-color': '#aaa',
+                    'fill-extrusion-height': ['get', 'height'],
+                    'fill-extrusion-base': ['get', 'min_height'],
+                    'fill-extrusion-opacity': 0.6
+                }
+            });
+
+            // Add terrain
+            map3D.addSource('mapbox-dem', {
+                'type': 'raster-dem',
+                'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+                'tileSize': 512,
+                'maxzoom': 14
+            });
+            map3D.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.5 });
+
+            // Add sky layer
+            map3D.addLayer({
+                'id': 'sky',
+                'type': 'sky',
+                'paint': {
+                    'sky-type': 'atmosphere',
+                    'sky-atmosphere-sun': [0.0, 90.0],
+                    'sky-atmosphere-sun-intensity': 15
+                }
+            });
+        }
+
+        function loadMarkersAndGeofences() {
+            // Load geofences
+            fetch('/get_geofences')
+                .then(response => response.json())
+                .then(geofenceData => {
+                    if (geofenceData.geofences && Array.isArray(geofenceData.geofences)) {
+                        geofenceData.geofences.forEach(addGeofence);
+                    }
+                });
+
+            // Add markers based on heatmap data
+            heatmapData.forEach(addMarker);
+        }
+
+        function addGeofence(geofence) {
+            if (currentView === '2d') {
+                const polygon = L.polygon(geofence.boundaries)
+                    .addTo(map2D)
+                    .bindPopup(`<b>${geofence.name}</b>`);
+                polygon.bindTooltip(geofence.name, { 
+                    permanent: true, 
+                    direction: 'center' 
+                }).openTooltip();
+            } else {
+                // Add 3D geofence
+                const coordinates = geofence.boundaries.map(coord => [coord[1], coord[0]]);
+                const sourceId = `geofence-${geofence.name}`;
+                
+                if (!map3D.getSource(sourceId)) {
+                    map3D.addSource(sourceId, {
+                        'type': 'geojson',
+                        'data': {
+                            'type': 'Feature',
+                            'properties': { 'name': geofence.name },
+                            'geometry': {
+                                'type': 'Polygon',
+                                'coordinates': [coordinates]
+                            }
+                        }
+                    });
+
+                    map3D.addLayer({
+                        'id': `${sourceId}-fill`,
+                        'type': 'fill-extrusion',
+                        'source': sourceId,
+                        'paint': {
+                            'fill-extrusion-color': '#088',
+                            'fill-extrusion-opacity': 0.3,
+                            'fill-extrusion-height': 500,
+                            'fill-extrusion-base': 0
+                        }
+                    });
+                }
+            }
+        }
+
+        function addMarker(item) {
+            const color = colorMap[mode][item.filter_value] || "gray";
+            const popupContent = `
+                <b>${item.location}</b><br>
+                ${item.response_text}
+            `;
+
+            if (currentView === '2d') {
+                const marker = L.circleMarker([item.latitude, item.longitude], {
+                    color: color,
+                    fillColor: color,
+                    radius: 10,
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.7
+                }).bindPopup(popupContent);
+                markers.addLayer(marker);
+            } else {
+                const el = document.createElement('div');
+                el.className = 'custom-marker';
+                el.style.backgroundColor = color;
+                el.style.width = '20px';
+                el.style.height = '20px';
+                el.style.borderRadius = '50%';
+                
+                new mapboxgl.Marker(el)
+                    .setLngLat([item.longitude, item.latitude])
+                    .setPopup(new mapboxgl.Popup().setHTML(popupContent))
+                    .addTo(map3D);
+            }
+        }
+
+        function toggleMapView(viewType) {
+            currentView = viewType;
+            const map2DElement = document.getElementById('map-2d');
+            const map3DElement = document.getElementById('map-3d');
+            
+            document.querySelectorAll('.view-toggle').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(`${viewType}-view`).classList.add('active');
+
+            if (viewType === '2d') {
+                map2DElement.style.display = 'block';
+                map3DElement.style.display = 'none';
+                if (map2D) map2D.invalidateSize();
+            } else {
+                map2DElement.style.display = 'none';
+                map3DElement.style.display = 'block';
+                if (map3D) map3D.resize();
+            }
+
+            // Reload markers and geofences for the current view
+            loadMarkersAndGeofences();
+        }
+
+        // Initialize everything when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeMaps();
+            
+            // Set up view toggle listeners
+            document.getElementById('2d-view').addEventListener('click', () => toggleMapView('2d'));
+            document.getElementById('3d-view').addEventListener('click', () => toggleMapView('3d'));
+
+            // Initial load of markers and geofences
+            loadMarkersAndGeofences();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Survey Analysis</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-bg: #1a1a1a;
+            --secondary-bg: #2d2d2d;
+            --accent-color: #1cb840;
+            --text-color: #ffffff;
+            --border-radius: 8px;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--primary-bg);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        .main-container {
+        display: flex;
+        height: 100vh;
+        width: 100vw; /* Ensure full viewport width */
+        overflow: hidden; /* Prevent scrolling at container level */
+    }
+        .sidebar {
+            width: 350px;
+            background-color: var(--secondary-bg);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid rgba(255,255,255,0.1);
+            overflow-y: auto;
+        }
+
+        .content-area {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+        overflow-y: auto;
+        background-color: var(--primary-bg);
+        width: 100%; /* Ensure full width */
+    }
+
+        h1 {
+            color: var(--accent-color);
+            text-align: center;
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--accent-color);
+            font-weight: 500;
+        }
+
+        select, input, textarea {
+            width: 100%;
+            padding: 10px;
+            background-color: var(--primary-bg);
+            color: var(--text-color);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: var(--border-radius);
+            box-sizing: border-box;
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 15px;
+        }
+
+        .btn:hover {
+            background-color: #93949a;
+        }
+
+        .btn:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+        }
+
+        #analysis-result {
+        background-color: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: var(--border-radius);
+        padding: 15px;
+        margin-top: 20px;
+        max-height: 100%;
+        overflow-y: auto;
+        white-space: normal; /* Changed from pre-wrap */
+        word-wrap: break-word; /* Added to wrap long words */
+        overflow-wrap: break-word; /* Alternative for word-wrap */
+        font-size:medium;
+    }
+
+    #analysis-result pre {
+        white-space: normal; /* Changed from pre-wrap */
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        font-family: 'Roboto', sans-serif; /* More readable font */
+        line-height: 1.6;
+        background-color: transparent; /* Remove background if any */
+        padding: 0;
+        margin: 0;
+    }
+
+        .loading {
+            text-align: center;
+            color: var(--accent-color);
+            font-size: 1.2em;
+            padding: 20px;
+        }
+
+        .progress-container {
+            width: 100%;
+            background-color: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+
+        .progress-bar {
+            width: 0;
+            height: 10px;
+            background-color: var(--accent-color);
+            border-radius: 10px;
+            transition: width 0.5s ease-in-out;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        #save-analysis {
+            background-color: rgba(28, 184, 64, 0.1);
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            padding: 8px 12px;
+            width: auto;
+            margin-top: 0;
+        }
+
+        #save-analysis:hover {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        .custom-prompt-section {
+            background-color: rgba(28, 184, 64, 0.05);
+            border: 1px solid rgba(28, 184, 64, 0.2);
+            border-radius: var(--border-radius);
+            padding: 15px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>{% include 'header.html' %}
+    <div class="main-container">
+        <div class="sidebar">
+            <h1>Survey Analysis</h1>
+            
+            <div class="form-group">
+                <label for="survey-select">Select Survey</label>
+                <select id="survey-select" required>
+                    <option value="">Choose a Survey</option>
+                    <!-- Survey options will be populated dynamically -->
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="analysis-type">Analysis Type</label>
+                <select id="analysis-type" required>
+                    <option value="">Select Analysis Type</option>
+                    <option value="sentiment_analysis">Sentiment Analysis</option>
+                    <option value="theme_extraction">Theme Extraction</option>
+                    <option value="demographic_insights">Demographic Insights</option>
+                    <option value="geographic_distribution">Geographic Distribution</option>
+                    <option value="language_analysis">Language Diversity</option>
+                    <option value="correlation_analysis">Correlation Analysis</option>
+                </select>
+            </div>
+
+            <div class="custom-prompt-section">
+                <label for="custom-prompt">Custom Analysis Prompt <small>(Optional)</small></label>
+                <textarea 
+                    id="custom-prompt" 
+                    placeholder="Enter a custom prompt to guide the analysis. This will be added to the standard analysis instructions."
+                ></textarea>
+            </div>
+
+            <button id="analyze-btn" class="btn" disabled>Analyze Survey</button>
+        </div>
+
+        <div class="content-area">
+            <div id="analysis-result">
+                <p class="text-gray-500 text-center">
+                    Select a survey and analysis type to begin
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const surveySelect = document.getElementById('survey-select');
+            const analysisTypeSelect = document.getElementById('analysis-type');
+            const customPromptInput = document.getElementById('custom-prompt');
+            const analyzeBtn = document.getElementById('analyze-btn');
+            const analysisResult = document.getElementById('analysis-result');
+
+            // Fetch surveys
+            async function fetchSurveys() {
+                try {
+                    const response = await fetch('/api/surveys');
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch surveys');
+                    }
+                    const surveys = await response.json();
+                    
+                    // Populate survey dropdown
+                    surveys.forEach(survey => {
+                        const option = document.createElement('option');
+                        option.value = survey.id;
+                        option.textContent = survey.title;
+                        surveySelect.appendChild(option);
+                    });
+                } catch (error) {
+                    console.error('Error fetching surveys:', error);
+                    analysisResult.innerHTML = `
+                        <div class="text-red-500">
+                            Failed to load surveys. Please try again later.
+                        </div>
+                    `;
+                }
+            }
+
+            // Enable/disable analyze button based on selections
+            function updateAnalyzeButton() {
+                analyzeBtn.disabled = !(surveySelect.value && analysisTypeSelect.value);
+            }
+
+            surveySelect.addEventListener('change', updateAnalyzeButton);
+            analysisTypeSelect.addEventListener('change', updateAnalyzeButton);
+
+            // Create progress bar
+            function createProgressBar() {
+                const progressContainer = document.createElement('div');
+                progressContainer.className = 'progress-container';
+                const progressBar = document.createElement('div');
+                progressBar.className = 'progress-bar';
+                progressContainer.appendChild(progressBar);
+                return { progressContainer, progressBar };
+            }
+
+            // Animate progress bar
+            function animateProgressBar(progressBar) {
+                let width = 0;
+                return new Promise((resolve) => {
+                    const interval = setInterval(() => {
+                        if (width >= 90) {
+                            clearInterval(interval);
+                            resolve();
+                        } else {
+                            width += Math.random() * 10 + 5;
+                            progressBar.style.width = `${Math.min(width, 90)}%`;
+                        }
+                    }, 500);
+                });
+            }
+
+            // Perform analysis
+            analyzeBtn.addEventListener('click', async function() {
+                const surveyId = surveySelect.value;
+                const analysisType = analysisTypeSelect.value;
+                const customPrompt = customPromptInput.value.trim();
+
+                // Clear previous results
+                analysisResult.innerHTML = `
+                    <div class="loading">
+                        <div>Analyzing Survey...Please wait</div>
+                        <small>Gathering and processing data</small>
+                    </div>
+                `;
+
+                // Create and start progress bar
+                const { progressContainer, progressBar } = createProgressBar();
+                analysisResult.appendChild(progressContainer);
+                const progressPromise = animateProgressBar(progressBar);
+
+                try {
+                    const response = await fetch('/api/analyze-survey', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            surveyId: surveyId,
+                            analysisType: analysisType,
+                            customPrompt: customPrompt
+                        })
+                    });
+
+                    // Ensure progress bar reaches 100%
+                    await progressPromise;
+                    progressBar.style.width = '100%';
+
+                    if (!response.ok) {
+                        throw new Error('Analysis failed');
+                    }
+
+                    const data = await response.json();
+
+                    // Display results with save button
+                    analysisResult.innerHTML = `
+                        <div class="result-header">
+                            <h3>Analysis Results</h3>
+                            <button id="save-analysis" class="btn">Save Analysis</button>
+                        </div>
+                        <p><strong>Total Responses Analyzed:</strong> ${data.total_responses || 'N/A'}</p>
+                        <pre>${data.analysis}</pre>
+                    `;
+
+                    // Add save functionality
+                    document.getElementById('save-analysis').addEventListener('click', function() {
+                        const analysisText = `Survey Analysis Report
+Survey: ${surveySelect.options[surveySelect.selectedIndex].text}
+Analysis Type: ${analysisTypeSelect.options[analysisTypeSelect.selectedIndex].text}
+Custom Prompt: ${customPrompt || 'None'}
+
+Results:
+${data.analysis}
+
+Generated on: ${new Date().toLocaleString()}`;
+
+                        const blob = new Blob([analysisText], { type: 'text/plain' });
+                        const downloadLink = document.createElement('a');
+                        downloadLink.href = URL.createObjectURL(blob);
+                        downloadLink.download = `Survey_Analysis_${new Date().toISOString().replace(/:/g, '-')}.txt`;
+                        
+                        document.body.appendChild(downloadLink);
+                        downloadLink.click();
+                        document.body.removeChild(downloadLink);
+                        URL.revokeObjectURL(downloadLink.href);
+                    });
+
+                } catch (error) {
+                    console.error('Analysis Error:', error);
+                    analysisResult.innerHTML = `
+                        <div class="text-red-500">
+                            <h3>Error</h3>
+                            <p>${error.message || 'Unable to complete analysis'}</p>
+                        </div>
+                    `;
+                }
+            });
+
+            // Initial survey fetch
+            fetchSurveys();
+        });
+    </script>
+</body>
+</html>

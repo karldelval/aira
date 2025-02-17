@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Citizen Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    {% include "chatbase.html" %}
+    {% include "header.html" %}
+
+    <div style="text-align: center; margin: 20px;">
+        <a href="/add_citizen">
+            <button class="update-btn">Add a Citizen</button>
+        </a>
+    </div>
+
+    <!-- Search Form -->
+    <form method="get" action="/citizen_dashboard" style="margin-bottom: 20px;">
+        <input type="text" name="barangay" placeholder="Barangay" value="{{ search_params.barangay or '' }}">
+        <input type="text" name="address" placeholder="Address" value="{{ search_params.address or '' }}">
+        <input type="text" name="gender" placeholder="Gender" value="{{ search_params.gender or '' }}">
+        <input type="text" name="precinct" placeholder="Precinct" value="{{ search_params.precinct or '' }}">
+        <input type="text" name="location" placeholder="Latitude/Longitude" value="{{ search_params.location or '' }}">
+        <input type="date" name="birthday" value="{{ search_params.birthday or '' }}">
+        <input type="text" name="name" placeholder="Name" value="{{ search_params.name or '' }}">
+        <button type="submit" class="update-btn">Search</button>
+    </form>
+
+    <!-- Citizen Table -->
+    <table id="citizen-table" class="table table-striped">
+        <thead>
+            <tr>
+                <th>Name</th>
+               
+               
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for citizen in citizens.items %}
+            <tr>
+                <td>{{ citizen.NAME }}</td>
+             
+                <td>
+                    <!-- Edit Citizen -->
+                    <a href="/edit_citizen/{{ citizen.ID }}">
+                        <button class="btn btn-primary btn-sm">Edit</button>
+                    </a>
+                    
+                    <!-- Upload Document -->
+                    <a href="/upload_document/{{ citizen.ID }}">
+                        <button class="btn btn-success btn-sm">Upload Document</button>
+                    </a>
+                    
+                    <!-- Complete KYC -->
+                    <a href="/update_kyc/{{ citizen.ID }}">
+                        <button class="btn btn-warning btn-sm">Complete KYC</button>
+                    </a>
+                    
+                    <!-- Other App Links -->
+                    <a href="/view_details/{{ citizen.ID }}">
+                        <button class="btn btn-info btn-sm">View Details</button>
+                    </a>
+                </td>
+                <td>
+                    <!-- Issue Barangay Clearance -->
+                    <a href="/add_barangay_clearance/{{ citizen.ID }}">
+                        <button class="btn btn-primary btn-sm">Barangay Clearance</button>
+              
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Pagination -->
+    <div style="text-align: center; margin-top: 20px;">
+        <a href="{{ url_for('citizen_dashboard', page=citizens.prev_num, **search_params) }}" 
+           {% if not citizens.has_prev %}style="pointer-events: none; opacity: 0.5;"{% endif %}>
+           Previous
+        </a>
+        |
+        <a href="{{ url_for('citizen_dashboard', page=citizens.next_num, **search_params) }}" 
+           {% if not citizens.has_next %}style="pointer-events: none; opacity: 0.5;"{% endif %}>
+           Next
+        </a>
+    </div>
+</body>
+</html>

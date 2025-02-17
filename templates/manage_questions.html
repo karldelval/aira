@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Questions</title>
+    <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>{% include "chatbase.html" %}
+<body>
+{% include 'header.html' %}
+<div class="container mt-5">
+    <h1 class="text-center">Manage Questions</h1>
+
+    <!-- Add Question Form -->
+    <form method="POST" action="/add_question" class="mt-4" id="questionForm">
+        <div class="mb-3">
+            <label for="survey_id" class="form-label">Select Survey</label>
+            <select class="form-select" id="survey_id" name="survey_id" required>
+                {% for survey in surveys %}
+                <option value="{{ survey.id }}">{{ survey.title }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="question_type" class="form-label">Question Type</label>
+            <select class="form-select" id="question_type" name="question_type" required>
+                <option value="TEXT">Text</option>
+                <option value="MULTIPLE_CHOICE">Multiple Choice</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="text" class="form-label">Question Text</label>
+            <textarea class="form-control" id="text" name="text" rows="4" required></textarea>
+        </div>
+
+        <div id="mcq-options" style="display: none;">
+            <label for="mcq-options" class="form-label">Options</label>
+            <div id="options-container"></div>
+            <button type="button" class="btn btn-secondary" id="add-option-btn">Add Option</button>
+        </div>
+
+        <div class="mb-3">
+            <label for="input_method" class="form-label">Input Method</label>
+            <select class="form-select" id="input_method" name="input_method" required>
+                <option value="TEXT">Text</option>
+                <option value="VOICE">Voice</option>
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Add Question</button>
+    </form>
+</div>
+
+  <!-- Questions Table -->
+  <div class="mt-5">
+    <h2 class="text-center">Questions</h2>
+    {% for survey in surveys %}
+    <div class="card mt-4">
+        <div class="card-header">
+            <h3>{{ survey.title }}</h3>
+            <p class="text-muted">{{ survey.description }}</p>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Question</th>
+                        <th>Type</th>
+                        <th>Input Method</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for question in survey.questions %}
+                    <tr>
+                        <td>{{ question.id }}</td>
+                        <td>{{ question.text }}</td>
+                        <td>{{ question.question_type }}</td>
+                        <td>{{ question.input_method }}</td>
+                        <td>
+                            <a href="/edit_question/{{ question.id }}" class="btn">Edit</a>
+                            <a href="/delete_question/{{ question.id }}" class="btn">Delete</a>
+                            <a href="/analyze_question/{{ question.id }}" class="btn">Analyze</a>
+                            <a href="/read_analysis/{{ question.id }}" class="btn">Read Analysis</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const questionType = document.getElementById("question_type");
+    const mcqOptions = document.getElementById("mcq-options");
+    const addOptionBtn = document.getElementById("add-option-btn");
+    const optionsContainer = document.getElementById("options-container");
+    const questionForm = document.getElementById("questionForm");
+
+    // Reset options when question type changes
+    questionType.addEventListener("change", function () {
+        if (this.value === "MULTIPLE_CHOICE") {
+            mcqOptions.style.display = "block";
+            // Ensure at least one option
+            if (optionsContainer.children.length === 0) {
+                addOption();
+            }
+        } else {
+            mcqOptions.style.display = "none";
+            optionsContainer.innerHTML = ''; // Clear options
+        }
+    });
+
+    function addOption() {
+        const optionCount = optionsContainer.children.length + 1;
+        const optionDiv = document.createElement("div");
+        optionDiv.className = "input-group mb-2 option-input";
+        optionDiv.innerHTML = `
+            <input type="text" name="options[]" class="form-control" placeholder="Option ${optionCount}" required>
+            <button type="button" class="btn btn-danger remove-option">Remove</button>
+        `;
+        optionsContainer.appendChild(optionDiv);
+    }
+
+    addOptionBtn.addEventListener("click", addOption);
+
+    // Remove option handling
+    optionsContainer.addEventListener("click", function (e) {
+        if (e.target.classList.contains("remove-option")) {
+            e.target.closest(".option-input").remove();
+        }
+    });
+
+    // Form submission validation
+    questionForm.addEventListener("submit", function (e) {
+        if (questionType.value === "MULTIPLE_CHOICE") {
+            const options = optionsContainer.querySelectorAll('input[name="options[]"]');
+            
+            // Remove empty options
+            options.forEach(option => {
+                if (option.value.trim() === '') {
+                    option.closest('.option-input').remove();
+                }
+            });
+
+            // Check remaining options
+            const remainingOptions = optionsContainer.querySelectorAll('input[name="options[]"]');
+            if (remainingOptions.length === 0) {
+                e.preventDefault();
+                alert("Please add at least one option for Multiple Choice questions");
+                return false;
+            }
+        } else {
+            // Clear options for non-multiple choice
+            optionsContainer.innerHTML = '';
+        }
+    });
+});
+</script>
+</body>
+</html>

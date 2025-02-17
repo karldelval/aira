@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incidents in Geofence</title>
+    <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        #map {
+            height: 700px;
+            width: 100%;
+        }
+    </style>
+</head>{% include "chatbase.html" %}
+<body> {% include 'header2.html' %}
+    <h1>Incidents in Geofence: {{ geofence_name }}</h1>
+    
+    {% if incidents %}
+        <!-- Display incidents in a table -->
+        <table id="incident-table">
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Location</th>
+                    <th>Timestamp</th>
+                    <th>Report</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for incident in incidents %}
+                    <tr>
+                        <td>{{ incident.category }}</td>
+                        <td>{{ incident.location }}</td>
+                        <td>{{ incident.timestamp }}</td>
+                        <td><a href="/incident/{{ incident.id }}">{{ incident.report_text }}</a></td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No incidents found.</p>
+    {% endif %}
+
+    <!-- Leaflet map -->
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        var map = L.map('map').setView([14.6098153, 121.0418842], 12); // Set initial map view
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        var geofencePolygons = []; // Store geofence polygons to use later for checking
+
+        // Fetch and display geofence data for a specific geofence_id
+        function fetchAndDisplayGeofences() {
+            fetch('/get_geofences')  // You can modify this endpoint to fetch all geofences
+                .then(response => response.json())
+                .then(geofenceData => {
+                    if (geofenceData && geofenceData.geofences) {
+                        geofenceData.geofences.forEach(function(geofence) {
+                            var geofenceBoundary = geofence.boundaries;
+                            
+                            // Draw the geofence boundary as a polygon
+                            var geofencePolygon = L.polygon(geofenceBoundary).addTo(map);
+                            geofencePolygon.bindPopup("<b>" + geofence.name + "</b><br>" + geofence.description);
+                            
+                            // Store the polygon for later checking
+                            geofencePolygons.push(geofencePolygon);
+                            
+                            // Optionally zoom to fit all geofences
+                            map.fitBounds(geofencePolygon.getBounds());
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching geofences:', error);
+                });
+        }
+
+     // Fetch incidents and display them on the map based on latitude and longitude
+function fetchAndDisplayIncidents() {
+    fetch('/get_incidents')  // Modify this endpoint to fetch all incidents
+        .then(response => response.json())
+        .then(incidentData => {
+            if (incidentData.incidents && Array.isArray(incidentData.incidents)) {
+                incidentData.incidents.forEach(function(incident) {
+                    // Only display incidents with valid latitude and longitude
+                    if (incident.latitude && incident.longitude) {
+                        var incidentLatLng = [incident.latitude, incident.longitude];
+                        var isInsideGeofence = false;
+
+                        // Check if the incident is within any geofence polygon
+                        geofencePolygons.forEach(function(geofencePolygon) {
+                            // Use getBounds().contains() to check if the point is inside the polygon
+                            if (geofencePolygon.getBounds().contains(L.latLng(incidentLatLng))) {
+                                isInsideGeofence = true;
+                            }
+                        });
+
+                        // Only add marker if the incident is inside a geofence
+                        if (isInsideGeofence) {
+                            var marker = L.marker(incidentLatLng).addTo(map);
+                            marker.bindPopup(`
+                                <b>Category:</b> ${incident.category}<br>
+                                <b>Location:</b> ${incident.location}<br>
+                                <b>Timestamp:</b> ${incident.timestamp}<br>
+                                <a href='/incident/${incident.id}'>${incident.report_text}</a>
+                            `);
+                        }
+                    }
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching incidents:', error);
+        });
+}
+
+        // Initialize the map and fetch geofence and incidents
+        fetchAndDisplayGeofences();
+        fetchAndDisplayIncidents();
+    </script>
+</body>
+</html>

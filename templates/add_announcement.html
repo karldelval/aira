@@ -1,0 +1,115 @@
+<link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+{% include "chatbase.html" %}
+{% include 'header.html' %}
+
+<style>
+    .table-container {
+        margin-top: 40px;
+    }
+    .table-container table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-size: 1rem;
+        text-align: left;
+    }
+    .table-container th, .table-container td {
+        border: 1px solid #ddd;
+        padding: 12px;
+    }
+    .table-container th {
+        background-color: #f4f4f4;
+        font-weight: bold;
+    }
+    .table-container tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+    .table-container tr:hover {
+        background-color: #f1f1f1;
+    }
+    </style>
+    
+<style>   .form-container {
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+.form-container h2 {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #333;
+}
+.form-container input, .form-container textarea {
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 1rem;
+}
+.form-container input[type="number"] {
+    width: calc(50% - 10px);
+    display: inline-block;
+}
+.form-container button {
+    width: 100%;
+    padding: 12px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+.form-container button:hover {
+    background-color: #0056b3;
+}
+.form-container .form-group {
+    margin-bottom: 15px;
+}
+</style>
+<div class="form-container">
+    <h2>Add New Announcement</h2>
+    <form method="POST">
+        <div class="form-group">
+            <label for="title">Title</label>
+            <input type="text" name="title" id="title" placeholder="Enter the title" required>
+        </div>
+        <div class="form-group">
+            <label for="content">Announcement Content</label>
+            <textarea name="content" id="content" placeholder="Enter the announcement content" rows="4" required></textarea>
+        </div>
+    
+        <button type="submit">Add Announcement</button>
+    </form>
+
+    <div class="table-container">
+        <h2>Announcements</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Title</th>
+                    <th>Content</th>
+                    <th>Posted By</th>
+                    <th>Timestamp</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for announcement in announcements %}
+                <tr>
+                    <td>{{ announcement.id }}</td>
+                    <td>{{ announcement.title }}</td>
+                    <td>{{ announcement.content }}</td>
+                    <td>{{ announcement.user_id }}</td>
+                    <td>{{ announcement.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</div>

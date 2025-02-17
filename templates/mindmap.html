@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.0.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        h1, h2 {
+            text-align: center;
+        }
+        .chart-container {
+            width: 80%;
+            margin: 20px auto;
+        }
+        .row {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+        }
+        .col {
+            flex: 1;
+            margin: 0 10px;
+        }
+        canvas {
+            width: 100% !important;
+            height: 400px !important;
+        }
+    </style>
+</head>
+<body>
+    <h1>Incident Dashboard</h1>
+    
+    <div class="row">
+        <!-- Pie Chart for Incident Categories -->
+        <div class="col">
+            <h2>Incident Category Distribution</h2>
+            <div class="chart-container">
+                <canvas id="categoryDistributionChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Pie Chart for Urgency Distribution -->
+        <div class="col">
+            <h2>Incident Urgency Distribution</h2>
+            <div class="chart-container">
+                <canvas id="urgencyDistributionChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Pie Chart for Incident Locations -->
+        <div class="col">
+            <h2>Incident Location Distribution</h2>
+            <div class="chart-container">
+                <canvas id="locationDistributionChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data for the categories, urgency, and locations distribution
+        const mindmapData = {{ mindmap_data | tojson }};
+        
+        // Prepare data for category distribution
+        const categoryCount = {};
+        mindmapData.groups.forEach(group => {
+            group.forEach(incident => {
+                const category = incident.category || 'Uncategorized';
+                categoryCount[category] = (categoryCount[category] || 0) + 1;
+            });
+        });
+
+        // Prepare data for urgency distribution
+        const urgencyCount = {
+            Urgent: 0,
+            NonUrgent: 0
+        };
+        mindmapData.groups.forEach(group => {
+            group.forEach(incident => {
+                if (incident.category === 'urgent') {
+                    urgencyCount.Urgent += 1;
+                } else {
+                    urgencyCount.NonUrgent += 1;
+                }
+            });
+        });
+
+        // Prepare data for location distribution
+        const locationCount = {};
+        mindmapData.groups.forEach(group => {
+            group.forEach(incident => {
+                const location = incident.location || 'Unknown';
+                locationCount[location] = (locationCount[location] || 0) + 1;
+            });
+        });
+
+        // Category Distribution Pie Chart
+        const categoryDistributionData = {
+            labels: Object.keys(categoryCount),
+            datasets: [{
+                label: 'Incident Categories',
+                data: Object.values(categoryCount),
+                backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#F39C12'],
+                hoverOffset: 4
+            }]
+        };
+
+        const categoryDistributionConfig = {
+            type: 'pie',
+            data: categoryDistributionData,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(tooltipItem) {
+                                return tooltipItem.label + ': ' + tooltipItem.raw + ' incidents';
+                            }
+                        }
+                    },
+                    datalabels: {
+                        display: true,
+                        color: 'white',
+                        font: {
+                            weight: 'bold',
+                            size: 14
+                        },
+                        formatter: function(value, context) {
+                            return value;  // Display the number of incidents directly on the chart
+                        }
+                    }
+                },
+                zoom: {
+                    enabled: true,
+                    mode: 'xy',
+                    speed: 0.1,
+                    sensitivity: 3,
+                    onZoom: function({ chart }) {
+                        console.log("Zoomed in on category distribution chart");
+                    }
+                }
+            }
+        };
+
+        const categoryDistributionChart = new Chart(document.getElementById('categoryDistributionChart'), categoryDistributionConfig);
+
+        // Urgency Distribution Pie Chart
+        const urgencyDistributionData = {
+            labels: ['Urgent', 'Non-Urgent'],
+            datasets: [{
+                label: 'Urgency Distribution',
+                data: [urgencyCount.Urgent, urgencyCount.NonUrgent],
+                backgroundColor: ['#FF5733', '#C9D6E6'],
+                hoverOffset: 4
+            }]
+        };
+
+        const urgencyDistributionConfig = {
+            type: 'pie',
+            data: urgencyDistributionData,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(tooltipItem) {
+                                return tooltipItem.label + ': ' + tooltipItem.raw + ' incidents';
+                            }
+                        }
+                    },
+                    datalabels: {
+                        display: true,
+                        color: 'white',
+                        font: {
+                            weight: 'bold',
+                            size: 14
+                        },
+                        formatter: function(value, context) {
+                            return value;  // Display the number of incidents directly on the chart
+                        }
+                    }
+                },
+                zoom: {
+                    enabled: true,
+                    mode: 'xy',
+                    speed: 0.1,
+                    sensitivity: 3,
+                    onZoom: function({ chart }) {
+                        console.log("Zoomed in on urgency distribution chart");
+                    }
+                }
+            }
+        };
+
+        const urgencyDistributionChart = new Chart(document.getElementById('urgencyDistributionChart'), urgencyDistributionConfig);
+
+        // Location Distribution Pie Chart
+        const locationDistributionData = {
+            labels: Object.keys(locationCount),
+            datasets: [{
+                label: 'Incident Locations',
+                data: Object.values(locationCount),
+                backgroundColor: ['#7D3C98', '#3498DB', '#9B59B6', '#1ABC9C', '#E74C3C'],
+                hoverOffset: 4
+            }]
+        };
+
+        const locationDistributionConfig = {
+            type: 'pie',
+            data: locationDistributionData,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(tooltipItem) {
+                                return tooltipItem.label + ': ' + tooltipItem.raw + ' incidents';
+                            }
+                        }
+                    },
+                    datalabels: {
+                        display: true,
+                        color: 'white',
+                        font: {
+                            weight: 'bold',
+                            size: 14
+                        },
+                        formatter: function(value, context) {
+                            return value;  // Display the number of incidents directly on the chart
+                        }
+                    }
+                },
+                zoom: {
+                    enabled: true,
+                    mode: 'xy',
+                    speed: 0.1,
+                    sensitivity: 3,
+                    onZoom: function({ chart }) {
+                        console.log("Zoomed in on location distribution chart");
+                    }
+                }
+            }
+        };
+
+        const locationDistributionChart = new Chart(document.getElementById('locationDistributionChart'), locationDistributionConfig);
+    </script>
+</body>
+</html>

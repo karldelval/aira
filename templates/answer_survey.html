@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Answer Survey</title>
+    <script src="static/js/scripts.js" defer></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Arial', sans-serif;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #000000;
+            padding: 10px 20px;
+            color: white;
+        }
+        .header-logo img {
+            height: 40px;
+            margin-right: 10px;
+        }
+        .menu-bar a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            margin: 0 10px;
+        }
+        .container {
+            margin: 20px auto;
+            padding: 20px;
+            max-width: 800px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        .mic-btn {
+            font-size: 1.5rem;
+            cursor: pointer;
+            background: none;
+            border: none;
+            color: #007bff;
+        }
+        .mic-btn:active {
+            color: #dc3545;
+        }
+
+        /* Hamburger menu */
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            cursor: pointer;
+            gap: 5px;
+        }
+
+        .hamburger div {
+            width: 25px;
+            height: 3px;
+            background-color: white;
+            border-radius: 2px;
+        }
+
+        /* Responsive Menu */
+        @media (max-width: 768px) {
+            .menu-bar {
+                display: none;
+                flex-direction: column;
+                background-color: #000;
+                position: absolute;
+                top: 60px;
+                right: 0;
+                width: 100%;
+                padding: 10px 0;
+                text-align: center;
+                gap: 10px;
+            }
+
+            .menu-bar a {
+                display: block;
+                padding: 10px;
+            }
+
+            .hamburger {
+                display: flex;
+            }
+
+            .menu-bar.active {
+                display: flex;
+            }
+        }
+
+        /* Container styles */
+        .container {
+            margin: 20px auto;
+            padding: 20px;
+            max-width: 600px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        textarea, input[type="file"] {
+            width: 100%;
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        #submit-btn {
+            background-color: #7e6a87;
+            color: white;
+            padding: 10px;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            width: 100%;
+        }
+
+        #submit-btn:hover {
+            background-color: #957cad;
+        }
+
+        /* Validation styles */
+        input:invalid,
+        textarea:invalid {
+            border-color: #dc3545;
+        }
+        
+        input:invalid:focus,
+        textarea:invalid:focus {
+            border-color: #dc3545;
+            box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+        }
+        
+        input:invalid:hover::before,
+        textarea:invalid:hover::before {
+            content: attr(data-validation-message);
+            position: absolute;
+            background: #dc3545;
+            color: white;
+            padding: 5px;
+            border-radius: 5px;
+            font-size: 14px;
+            margin-top: -30px;
+        }
+    </style>
+</head>
+<body>
+    {% include 'homeheader.html' %}
+
+    <div class="container mt-5">
+        <h1 class="text-center">Answer Survey</h1>
+
+        <form method="POST" id="surveyForm">
+            <div class="mb-3">
+                <label for="survey_id" class="form-label">Choose Survey</label>
+                <select class="form-select" id="survey_id" name="survey_id" required>
+                    {% for survey in surveys %}
+                        <option value="{{ survey.id }}">{{ survey.title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div id="survey-questions" class="mt-4"></div>
+
+            <input type="hidden" id="latitude" name="latitude">
+            <input type="hidden" id="longitude" name="longitude">
+            <input type="hidden" id="user_id" name="user_id">
+
+            <button type="submit" class="btn btn-primary">Submit Survey</button>
+        </form>
+    </div>
+
+    <script>
+        let questionsData = [];
+        let recognition = null;
+        let isRecording = false;
+    
+        const fetchSession = async () => {
+            try {
+                const response = await fetch('/session');
+                const data = await response.json();
+                const loginLink = document.getElementById('login-link');
+                const menuBar = document.getElementById('menu-bar'); // Get menu bar reference
+
+                if (data.logged_in) {
+                    loginLink.innerText = 'Logout';
+                    loginLink.href = '/logout';
+
+                    const changePasswordLink = document.createElement('a');
+                    changePasswordLink.href = '/change_password';
+                    changePasswordLink.innerText = 'Change Password';
+                    
+                    if (menuBar) { // Check if menuBar exists before appending
+                        menuBar.appendChild(changePasswordLink);
+                    }
+                } else {
+                    loginLink.innerText = 'Login';
+                    loginLink.href = '/login';
+                }
+            } catch (error) {
+                console.error("Error fetching session data:", error);
+            }
+        };
+    
+        function fetchQuestions(surveyId) {
+            fetch(`/get_survey_questions/${surveyId}`)
+                .then(response => response.json())
+                .then(data => {
+                    questionsData = data.questions;
+                    renderQuestions();
+                });
+        }
+    
+        function renderQuestions() {
+            const container = document.getElementById("survey-questions");
+            container.innerHTML = "";
+
+            questionsData.forEach(question => {
+                const questionDiv = document.createElement('div');
+                questionDiv.classList.add('mb-4');
+
+                const label = document.createElement('label');
+                label.classList.add('form-label');
+                label.innerText = question.text;
+
+                let inputWrapper;
+
+                if (question.question_type === 'MULTIPLE_CHOICE') {
+                    inputWrapper = document.createElement('div');
+                    question.options.forEach((option, index) => {
+                        const optionDiv = document.createElement('div');
+                        optionDiv.classList.add('form-check');
+
+                        const radio = document.createElement('input');
+                        radio.type = 'radio';
+                        radio.classList.add('form-check-input');
+                        radio.name = `answer_${question.id}`;
+                        radio.id = `option_${question.id}_${index}`;
+                        radio.value = option;
+                        radio.required = true;
+                        radio.title = "Please select an option";
+                        radio.setAttribute('data-validation-message', 'This field cannot be empty');
+
+                        const radioLabel = document.createElement('label');
+                        radioLabel.classList.add('form-check-label');
+                        radioLabel.setAttribute('for', `option_${question.id}_${index}`);
+                        radioLabel.innerText = option;
+
+                        optionDiv.appendChild(radio);
+                        optionDiv.appendChild(radioLabel);
+                        inputWrapper.appendChild(optionDiv);
+                    });
+                } else {
+                    const input = document.createElement('textarea');
+                    input.classList.add('form-control');
+                    input.id = `answer_${question.id}`;
+                    input.name = `answer_${question.id}`;
+                    input.required = true;
+                    input.title = "Please provide an answer";
+                    input.setAttribute('data-validation-message', 'This field cannot be empty');
+                    input.placeholder = "This field is required";
+                    
+                    const micBtn = document.createElement('button');
+                    micBtn.type = "button";
+                    micBtn.classList.add('mic-btn', 'ms-2');
+                    micBtn.innerText = '🎙️ Start Mic';
+                    micBtn.addEventListener('click', () => toggleVoiceRecognition(question.id, micBtn));
+
+                    inputWrapper = document.createElement('div');
+                    inputWrapper.appendChild(input);
+                    inputWrapper.appendChild(micBtn);
+                }
+
+                questionDiv.appendChild(label);
+                questionDiv.appendChild(inputWrapper);
+                container.appendChild(questionDiv);
+            });
+        }
+    
+        function toggleVoiceRecognition(questionId, micBtn) {
+            if (isRecording) {
+                stopVoiceRecognition();
+                micBtn.innerText = '🎙️ Start Mic';
+            } else {
+                startVoiceRecognition(questionId);
+                micBtn.innerText = '🔴 Stop Mic';
+            }
+            isRecording = !isRecording;
+        }
+    
+        function startVoiceRecognition(questionId) {
+            if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+                alert("Your browser doesn't support Speech Recognition.");
+                return;
+            }
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            
+            // Configure recognition
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            
+            // Array of language codes to try (including possible Ilocano codes)
+            const languageCodes = [
+                'fil-PH',    // Filipino/Tagalog
+                'en-PH',     // Philippine English
+                'en-US',     // US English
+                'ilo',       // Ilocano (if supported)
+                'fil',       // Generic Filipino
+            ];
+            
+            let currentLangIndex = 0;
+            recognition.lang = languageCodes[currentLangIndex];
+
+            const textarea = document.getElementById(`answer_${questionId}`);
+            textarea.placeholder = "Listening... (English/Tagalog)";
+
+            recognition.onstart = () => {
+                console.log('Speech recognition started');
+                textarea.disabled = false;
+            };
+
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+                let finalTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript + ' ';
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+
+                // Update textarea with the transcribed text
+                if (finalTranscript !== '') {
+                    const currentText = textarea.value;
+                    textarea.value = (currentText + ' ' + finalTranscript).trim();
+                }
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                textarea.placeholder = "Error: " + event.error;
+            };
+
+            recognition.onend = () => {
+                console.log('Speech recognition ended');
+                if (isRecording) {
+                    try {
+                        // Cycle through language codes
+                        currentLangIndex = (currentLangIndex + 1) % languageCodes.length;
+                        recognition.lang = languageCodes[currentLangIndex];
+                        console.log('Switching to language:', recognition.lang);
+                        recognition.start();
+                    } catch (error) {
+                        console.error('Error restarting speech recognition:', error);
+                        // If we've tried all languages, restart from the beginning
+                        currentLangIndex = 0;
+                        recognition.lang = languageCodes[currentLangIndex];
+                        recognition.start();
+                    }
+                } else {
+                    textarea.placeholder = "This field is required";
+                }
+            };
+
+            // Start recognition
+            try {
+                recognition.start();
+                console.log('Speech recognition started successfully');
+            } catch (error) {
+                console.error('Error starting speech recognition:', error);
+            }
+        }
+    
+        function stopVoiceRecognition() {
+            if (recognition) {
+                recognition.stop();
+                const activeTextArea = document.querySelector('textarea:focus');
+                if (activeTextArea) {
+                    activeTextArea.disabled = false;
+                    activeTextArea.placeholder = "This field is required";
+                }
+            }
+        }
+    
+        // Initialize the form
+        document.addEventListener('DOMContentLoaded', () => {
+            const surveyIdSelect = document.getElementById('survey_id');
+            if (surveyIdSelect) {
+                surveyIdSelect.addEventListener('change', function() {
+                    fetchQuestions(this.value);
+                });
+                fetchQuestions(surveyIdSelect.value);
+            }
+
+            const hamburger = document.getElementById("hamburger");
+            if (hamburger) {
+                hamburger.addEventListener("click", () => {
+                    const menuBar = document.getElementById("menu-bar");
+                    if (menuBar) {
+                        menuBar.classList.toggle("active");
+                    }
+                });
+            }
+
+            // Call fetchSession after DOM is loaded
+            fetchSession();
+        });
+    </script>
+</body>
+</html>

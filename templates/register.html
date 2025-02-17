@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register</title>
+    <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>/* General Styling */
+        body {
+            
+            background: linear-gradient(to bottom right, #3e3054, #d2e2fc);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: #333;
+        }
+        
+        /* Form Container */
+        .form-container {
+            text-align: center;
+            padding: 20px;
+        }
+
+/* General input field styling */
+form input {
+    width: 100%;            /* Ensures the inputs take up the full width of their container */
+    padding: 12px 20px;     /* Adds padding inside the input field */
+    margin: 10px 0;         /* Adds spacing between inputs */
+    border: 1px solid #ccc; /* Light gray border */
+    border-radius: 5px;     /* Rounded corners */
+    box-sizing: border-box; /* Ensures padding and border are included in width */
+    font-size: 16px;        /* Standard font size */
+    outline: none;          /* Removes the default focus outline */
+    font-family: Arial, sans-serif; /* Sets a consistent font */
+}
+
+/* Special styling for the email input */
+form input[type="email"] {
+    appearance: none;       /* Removes browser-specific styling for email inputs */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+}
+
+/* Optionally limit the width of the inputs */
+form input {
+    max-width: 500px; /* Limit the max width to ensure consistency */
+}
+
+/* Optional: Add focus effects */
+form input:focus {
+    border-color: #007bff;  /* Blue border when focused */
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.5); /* Light blue shadow */
+}
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            color: #ffffff;
+            text-shadow: 2px 2px 4px #000;
+        }
+        
+        /* Login Box */
+        .login-box {
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 8px;
+            padding: 30px 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+
+        h2 {
+            font-size: 1.8rem;
+            color: #444;
+            margin-bottom: 20px;
+        }
+        
+        /* Input Fields */
+        input[type="text"],
+        input[type="password"]
+         {
+            width: 90%;
+            padding: 12px 15px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            border-color: #2d89ef;
+            outline: none;
+        }
+        
+        /* Login Button */
+        button {
+            background: #2d89ef;
+            color: #fff;
+            border: none;
+            padding: 12px 20px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+        
+        button:hover {
+            background: #1d5ab7;
+            transform: translateY(-2px);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        /* Links */
+        p {
+            margin-top: 15px;
+            font-size: 0.9rem;
+        }
+        
+        a {
+            color: #2d89ef;
+            text-decoration: none;
+            font-weight: bold;
+            transition: color 0.3s ease;
+        }
+        
+        a:hover {
+            color: #1d5ab7;
+        }</style>
+</head>
+<body>
+    <div class="form-container">
+        <h1>AIRA COMMAND CENTER</h1>
+        <div class="register-box">
+            <h2>Register</h2>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <ul>
+                        {% for category, message in messages %}
+                            <li class="{{ category }}">{{ message }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            {% endwith %}
+            <form method="POST">
+                <input type="text" name="first_name" placeholder="First Name" required>
+                <input type="text" name="last_name" placeholder="Last Name" required>
+                <input type="email" name="email" placeholder="Email" required>
+                <input type="text" name="username" placeholder="Username" required>
+                <input type="password" name="password" placeholder="Password" required>
+                <input type="text" name="mobile" placeholder="Mobile" required>
+                <button type="submit">Register</button>
+            </form>
+            <p>Already have an account? <a href="{{ url_for('login') }}">Login</a></p>
+        </div>
+    </div>
+</body>
+</html>

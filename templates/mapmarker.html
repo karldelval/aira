@@ -1,0 +1,1842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marker Management Map</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css' rel='stylesheet' />
+    
+     
+    <style>
+        /* Full page layout */
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            font-family: roboto;
+            overflow: hidden;
+        }
+    
+        .app-container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+            overflow: hidden;
+        }
+    
+    .sidebar {
+        width: 400px;
+        background-color: #f4f4f4;
+        overflow-y: auto;
+        border-right: 1px solid #ddd;
+        padding: 15px;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .sidebar-content {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .form-container {
+        margin-bottom: 15px;
+    }
+    
+    .table-container {
+        flex-grow: 1;
+        overflow-y: auto;
+    }
+    
+    .map-container {
+        flex-grow: 1;
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+    }
+    
+    #map-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+    
+    #map-2d, #map-3d {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+    
+    #map-3d {
+        display: none;
+    }
+    
+    /* Map Controls Styles */
+    .map-controls {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 1000;
+        background: white;
+        padding: 10px;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .view-toggle {
+        margin: 5px;
+        padding: 8px 16px;
+        background: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    
+    .view-toggle:hover {
+        background: #45a049;
+    }
+    
+    .view-toggle.active {
+        background: #357abd;
+    }
+    
+    .map-style-control {
+        position: absolute;
+        top: 60px;
+        left: 10px;
+        z-index: 1000;
+        background: white;
+        padding: 10px;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        display: none;
+    }
+    
+    .style-button {
+        display: block;
+        width: 100%;
+        margin: 5px 0;
+        padding: 8px 16px;
+        background: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    
+    .style-button:hover {
+        background: #45a049;
+    }
+    
+    .style-button.active {
+        background: #357abd;
+    }
+    
+    /* Table Styles */
+    #markerTable {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    #markerTable th, #markerTable td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+    }
+    
+    #markerTable thead {
+        position: sticky;
+        top: 0;
+        background-color: #f4f4f4;
+        z-index: 10;
+    }
+    
+    /* Controls Styling */
+    #controls {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+    
+    #controls input, 
+    #controls select, 
+    #controls button {
+        width: 100%;
+        padding: 10px;
+        margin: 5px 0;
+        box-sizing: border-box;
+    }
+    
+    /* Category Filter Styles */
+    .category-columns {
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+    }
+    
+    .category-column {
+        flex: 1;
+        min-width: 180px;
+        margin-right: 10px;
+    }
+    
+    /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.4);
+    }
+    
+    .modal-content {
+        background-color: #fefefe;
+        margin: 15% auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 80%;
+        max-width: 800px;
+        border-radius: 5px;
+    }
+    
+    .selected {
+        background-color: #e0e0e0;
+    }
+    .data-display {
+    margin-bottom: 20px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.data-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.data-item {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+}
+
+.data-actions {
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+}
+
+.btn {
+    padding: 5px 10px;
+    border: none;
+    border-radius: 4px;
+    background-color: #4CAF50;
+    color: white;
+    cursor: pointer;
+}
+
+.btn:hover {
+    background-color: #45a049;
+}
+
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .app-container {
+            flex-direction: column;
+        }
+        
+        .sidebar {
+            width: 100%;
+            height: auto;
+        }
+        
+        .map-container {
+            height: 50vh;
+        }
+    }
+        </style>
+        <style>.app-container {
+    display: flex;
+    height: 100vh;
+}
+
+.sidebar {
+    width: 400px;
+    background-color: #f4f4f4;
+    overflow-y: auto;
+    border-right: 1px solid #ddd;
+    padding: 15px;
+    box-sizing: border-box;
+}
+
+.main-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.map-container {
+    flex-grow: 1;
+    position: relative;
+    width: 100%;
+    height: 60vh;
+    overflow: hidden;
+}
+
+.table-container {
+    height: 40vh;
+    overflow-y: auto;
+    padding: 15px;
+    box-sizing: border-box;
+}
+
+#markerTable {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#markerTable th,
+#markerTable td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+#markerTable thead {
+    position: sticky;
+    top: 0;
+    background-color: #f4f4f4;
+    z-index: 10;
+}</style>
+    
+
+</head>
+<body> {% include 'header.html' %}
+    <div class="app-container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>AIRA Marker Map</h1>
+                <button id="toggleFilterButton">Filter</button>
+            </div>
+        
+            <!-- Category Filter Section -->
+            <div id="filterSection" class="category-filter" style="display: none;">
+                <h3>Filter by Category</h3>
+                <div class="category-columns">
+                    <div class="category-column">
+                        <label><input type="checkbox" id="flood" onclick="filterMarkers()"> Flood Prone Area</label><br>
+                        <label><input type="checkbox" id="tax" onclick="filterMarkers()"> Tax Mapped Area</label><br>
+                        <label><input type="checkbox" id="traffic" onclick="filterMarkers()"> Traffic</label><br>
+                        <label><input type="checkbox" id="quarantine" onclick="filterMarkers()">Quarantined Area</label><br>
+                        <label><input type="checkbox" id="construction" onclick="filterMarkers()"> Under Construction</label><br>
+                        <label><input type="checkbox" id="commercial" onclick="filterMarkers()"> Commercial Building</label><br>
+                        <label><input type="checkbox" id="residential" onclick="filterMarkers()"> Residential Building</label><br>
+                        <label><input type="checkbox" id="shelter" onclick="filterMarkers()"> Shelter</label><br>
+                        <label><input type="checkbox" id="store" onclick="filterMarkers()"> Sari-Sari Store</label><br>
+                        <label><input type="checkbox" id="hospital" onclick="filterMarkers()"> Hospital</label><br>
+                        <label><input type="checkbox" id="school" onclick="filterMarkers()"> School</label><br>
+                        <label><input type="checkbox" id="fire" onclick="filterMarkers()"> Fire Station</label><br>
+                        <label><input type="checkbox" id="police" onclick="filterMarkers()"> Police Station</label><br>
+                    </div>
+                    <div class="category-column">
+                        <label><input type="checkbox" id="fireprone" onclick="filterMarkers()">Fire Prone Area</label><br>
+                        <label><input type="checkbox" id="park" onclick="filterMarkers()"> Park</label><br>
+                        <label><input type="checkbox" id="restaurant" onclick="filterMarkers()"> Restaurant</label><br>
+                        <label><input type="checkbox" id="mall" onclick="filterMarkers()"> Shopping Mall</label><br>
+                        <label><input type="checkbox" id="gym" onclick="filterMarkers()"> Gym</label><br>
+                        <label><input type="checkbox" id="pharmacy" onclick="filterMarkers()"> Pharmacy</label><br>
+                        <label><input type="checkbox" id="museum" onclick="filterMarkers()"> Museum</label><br>
+                        <label><input type="checkbox" id="airport" onclick="filterMarkers()"> Airport</label><br>
+                        <label><input type="checkbox" id="train" onclick="filterMarkers()"> Train Station</label><br>
+                        <label><input type="checkbox" id="bus" onclick="filterMarkers()"> Bus Stop</label><br>
+                        <label><input type="checkbox" id="library" onclick="filterMarkers()"> Library</label><br>
+                    </div>
+                    <div class="category-column">
+                        <label><input type="checkbox" id="tower" onclick="filterMarkers()"> Tower</label><br>
+                        <label><input type="checkbox" id="parking" onclick="filterMarkers()"> Parking Lot</label><br>
+                        <label><input type="checkbox" id="atm" onclick="filterMarkers()"> ATM</label><br>
+                        <label><input type="checkbox" id="grocery" onclick="filterMarkers()"> Grocery Store</label><br>
+                        <label><input type="checkbox" id="supermarket" onclick="filterMarkers()"> Supermarket</label><br>
+                        <label><input type="checkbox" id="bank" onclick="filterMarkers()"> Bank</label><br>
+                        <label><input type="checkbox" id="university" onclick="filterMarkers()"> University</label><br>
+                        <label><input type="checkbox" id="hotel" onclick="filterMarkers()"> Hotel</label><br>
+                        <label><input type="checkbox" id="taxi" onclick="filterMarkers()"> Taxi Stand</label><br>
+                        <label><input type="checkbox" id="clinic" onclick="filterMarkers()"> Clinic</label><br>
+                        <label><input type="checkbox" id="bakery" onclick="filterMarkers()"> Bakery</label><br>
+                    </div>
+                    <div class="category-column">
+                        <label><input type="checkbox" id="gas" onclick="filterMarkers()"> Gas Station</label><br>
+                        <label><input type="checkbox" id="post" onclick="filterMarkers()"> Post Office</label><br>
+                        <label><input type="checkbox" id="warehouse" onclick="filterMarkers()"> Warehouse</label><br>
+                        <label><input type="checkbox" id="sports" onclick="filterMarkers()"> Sports Complex</label><br>
+                        <label><input type="checkbox" id="zoo" onclick="filterMarkers()"> Zoo</label><br>
+                        <label><input type="checkbox" id="beach" onclick="filterMarkers()"> Beach</label><br>
+                        <label><input type="checkbox" id="river" onclick="filterMarkers()"> River</label><br>
+                        <label><input type="checkbox" id="bridge" onclick="filterMarkers()"> Bridge</label><br>
+                        <label><input type="checkbox" id="cemetery" onclick="filterMarkers()"> Cemetery</label><br>
+                        <label><input type="checkbox" id="gov" onclick="filterMarkers()"> Government Office</label><br>
+                    </div>
+                    <div class="category-column">
+                        <label><input type="checkbox" id="power" onclick="filterMarkers()"> Power Plant</label><br>
+                        <label><input type="checkbox" id="wind" onclick="filterMarkers()"> Wind Farm</label><br>
+                        <label><input type="checkbox" id="solar" onclick="filterMarkers()"> Solar Farm</label><br>
+                        <label><input type="checkbox" id="forest" onclick="filterMarkers()"> Forest</label><br>
+                        <label><input type="checkbox" id="nature" onclick="filterMarkers()"> Nature Reserve</label><br>
+                        <label><input type="checkbox" id="waste" onclick="filterMarkers()"> Waste Disposal</label><br>
+                        <label><input type="checkbox" id="recycling" onclick="filterMarkers()"> Recycling Center</label><br>
+                        <label><input type="checkbox" id="cafe" onclick="filterMarkers()"> Café</label><br>
+                        <label><input type="checkbox" id="nightclub" onclick="filterMarkers()"> Nightclub</label><br>
+                        <label><input type="checkbox" id="theater" onclick="filterMarkers()"> Theater</label><br>
+                    </div>
+                </div>
+            </div>
+        
+            <div id="controls">
+                <input type="text" id="markerLabel" placeholder="Marker Label">
+                <input type="text" id="markerDescription" placeholder="Marker Description">
+                <select id="markerCategory">
+        
+                        <option value="Flood Prone Area">Flood Prone Area</option>
+                        <option value="Tax">Tax Mapped Area</option>
+                        <option value="Traffic">Traffic</option>
+                        <option value="Shelter">Shelter</option>
+                        <option value="Fire Prone Area">Fire Prone Area</option>
+                        <option value="Under Construction">Under Construction</option>
+                        <option value="Commercial Building">Commercial Building</option>
+                        <option value="Residential Building">Residential Building</option>
+                        <option value="Tower">Tower</option>
+                        <option value="Sari-Sari Store">Sari-Sari Store</option>
+                        <option value="Quarantined Area">Quarantined Area</option>
+                        <!-- 50 additional categories -->
+                        <option value="Hospital">Hospital</option>
+                        <option value="School">School</option>
+                        <option value="Fire Station">Fire Station</option>
+                        <option value="Police Station">Police Station</option>
+                        <option value="Park">Park</option>
+                        <option value="Restaurant">Restaurant</option>
+                        <option value="Shopping Mall">Shopping Mall</option>
+                        <option value="Gym">Gym</option>
+                        <option value="Pharmacy">Pharmacy</option>
+                        <option value="Museum">Museum</option>
+                        <option value="Airport">Airport</option>
+                        <option value="Train Station">Train Station</option>
+                        <option value="Bus Stop">Bus Stop</option>
+                        <option value="Library">Library</option>
+                        <option value="Parking Lot">Parking Lot</option>
+                        <option value="ATM">ATM</option>
+                        <option value="Grocery Store">Grocery Store</option>
+                        <option value="Supermarket">Supermarket</option>
+                        <option value="Bank">Bank</option>
+                        <option value="University">University</option>
+                        <option value="Hotel">Hotel</option>
+                        <option value="Taxi Stand">Taxi Stand</option>
+                        <option value="Clinic">Clinic</option>
+                        <option value="Bakery">Bakery</option>
+                        <option value="Gas Station">Gas Station</option>
+                        <option value="Post Office">Post Office</option>
+                        <option value="Warehouse">Warehouse</option>
+                        <option value="Construction Site">Construction Site</option>
+                        <option value="Sports Complex">Sports Complex</option>
+                        <option value="Zoo">Zoo</option>
+                        <option value="Beach">Beach</option>
+                        <option value="River">River</option>
+                        <option value="Bridge">Bridge</option>
+                        <option value="Cemetery">Cemetery</option>
+                        <option value="Government Office">Government Office</option>
+                        <option value="Power Plant">Power Plant</option>
+                        <option value="Wind Farm">Wind Farm</option>
+                        <option value="Solar Farm">Solar Farm</option>
+                        <option value="Forest">Forest</option>
+                        <option value="Nature Reserve">Nature Reserve</option>
+                        <option value="Waste Disposal">Waste Disposal</option>
+                        <option value="Recycling Center">Recycling Center</option>
+                        <option value="Café">Café</option>
+                        <option value="Nightclub">Nightclub</option>
+                        <option value="Theater">Theater</option>
+                        <option value="Concert Hall">Concert Hall</option>
+                        <option value="Art Gallery">Art Gallery</option>
+                        <option value="Botanical Garden">Botanical Garden</option>
+                        <option value="Amusement Park">Amusement Park</option>
+                        <option value="Ski Resort">Ski Resort</option>
+                        <option value="Camping Site">Camping Site</option>
+                        <option value="Wildlife Sanctuary">Wildlife Sanctuary</option>
+                        <option value="Aquarium">Aquarium</option>
+                        <option value="Fishing Spot">Fishing Spot</option>
+                        <option value="Farm">Farm</option>
+                        <option value="Vineyard">Vineyard</option>
+                        <option value="Winery">Winery</option>
+                </select>
+                <div>
+                    <button class="btn" onclick="placeMarker()">Place Marker</button>
+                    <button class="btn" onclick="saveMarker()">Save Marker</button>
+                    <button class="btn" onclick="editMarker()">Edit Marker</button>
+                    <button class="btn" onclick="deleteMarker()">Delete Marker</button>
+                </div>
+            </div>
+        
+          
+                <div class="form-container">
+                    <div>
+                        <input type="text" id="searchAddress" placeholder="Search by Address">
+                        <input type="text" id="searchLat" placeholder="Latitude">
+                        <input type="text" id="searchLon" placeholder="Longitude">
+                        <button class="btn" onclick="searchLocation()">Search Location</button>
+                    </div>
+        <br>
+                    <div>
+                        <input type="text" id="searchMarkers" placeholder="Search Markers">
+                        <button class="btn" onclick="searchMarkers()">Search Markers</button>
+                    </div>
+                </div>
+        
+              
+            </div>
+      
+            <div class="main-container">
+                <div class="map-container">
+                    <div id="map-container">
+                        <div id="map-2d"></div>
+                        <div id="map-3d"></div>
+                        <div class="map-controls">
+                            <button class="view-toggle active" id="2d-view">2D View</button>
+                            <button class="view-toggle" id="3d-view">3D View</button>
+                        </div>
+                        <div class="map-style-control" id="style-controls">
+                            <button class="style-button" data-style="mapbox://styles/mapbox/streets-v12">Streets</button>
+                            <button class="style-button" data-style="mapbox://styles/mapbox/satellite-v9">Satellite</button>
+                            <button class="style-button" data-style="mapbox://styles/mapbox/satellite-streets-v12">Satellite Streets</button>
+                            <button class="style-button" data-style="mapbox://styles/mapbox/outdoors-v12">Outdoors</button>
+                            <button class="style-button" data-style="mapbox://styles/mapbox/dark-v11">Dark</button>
+                        </div>
+                    </div>
+             
+                </div>
+                <div class="table-container">
+                    <h2>Marker Data</h2>
+                    <table id="markerTable">
+                        <thead>
+                            <tr>
+                                <th>Label</th>
+                                <th>Description</th>
+                                <th>Category</th>
+                                <th>Latitude</th>
+                                <th>Longitude</th>
+                                <th>Geotag-Address</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Rows will be dynamically added here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div></div>
+    
+
+            <div id="markerDataModal" class="modal">
+                <div class="modal-content">
+                    <span class="close">&times;</span>
+                    <h2>Manage Marker Data</h2>
+                    
+                    <!-- Data will be displayed here -->
+                    
+                    <div class="data-form">
+                        <h3>Add New Data</h3>
+                        <select id="dataCategory">
+                            <option value="IoT">IoT Data</option>
+                            <option value="Crop">Crop Data</option>
+                            <option value="Weather">Weather Data</option>
+                            <option value="Maintenance">Maintenance Data</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <input type="text" id="dataValue" placeholder="Data Value">
+                        <textarea id="dataNotes" placeholder="Notes"></textarea>
+                        <input type="file" id="dataImage" accept="image/*">
+                        <button onclick="saveMarkerData()" class="btn">Save Data</button>
+                    </div>
+                </div>
+            </div>
+    
+
+    <!-- Script inclusions -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js'></script>
+
+    <script>
+        // Mapbox access token (replace with your actual token)
+        mapboxgl.accessToken = 'pk.eyJ1IjoiamFzb25jZGVsYXJvc2EiLCJhIjoiY202MGd4ZXNyMDF2MDJpcTR4aHhqMGNvOSJ9.SVKcekxHU0w8-6AoRp9K9A';
+
+
+        let map2D, map3D;
+        let markers = [];
+        let currentMarker = null;
+        let currentView = '2d';
+// Map initialization function
+function initializeMaps() {
+    // Create 2D map but don't initialize view yet
+    map2D = L.map('map-2d', {
+        preferCanvas: true,
+        wheelDebounceTime: 150
+    });
+    
+    // Add tile layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map2D);
+
+    // Initialize 3D map
+    map3D = new mapboxgl.Map({
+        container: 'map-3d',
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: [120.9842, 14.5995],
+        zoom: 13,
+        pitch: 45,
+        bearing: -17.6
+    });
+
+    // Add navigation controls to 3D map
+    map3D.addControl(new mapboxgl.NavigationControl({ 
+        showCompass: true, 
+        showZoom: true,
+        visualizePitch: true
+    }), 'top-right');
+
+    // Function to properly size and initialize maps
+    function initializeMapSize() {
+        // Force recalculation of map size
+        map2D.invalidateSize(true);
+        map3D.resize();
+        
+        // Set view for 2D map after size is updated
+        map2D.setView([14.5995, 120.9842], 13);
+    }
+
+    // Call immediately
+    initializeMapSize();
+
+    // Also call after a short delay to ensure everything is loaded
+    setTimeout(initializeMapSize, 100);
+
+    // Add resize handler for window
+    window.addEventListener('resize', function() {
+        initializeMapSize();
+    });
+
+    // Add observer to watch for container size changes
+    const resizeObserver = new ResizeObserver(() => {
+        initializeMapSize();
+    });
+
+    // Observe both map containers
+    resizeObserver.observe(document.getElementById('map-2d'));
+    resizeObserver.observe(document.getElementById('map-3d'));
+
+    // Load existing markers when 3D map is ready
+    map3D.on('load', () => {
+        fetch('/get_markers')
+            .then(response => response.json())
+            .then(data => {
+                data.markers.forEach(marker => addMarkerToMap(marker));
+                populateMarkerTable();
+            })
+            .catch(error => console.error('Error loading markers:', error));
+    });
+}
+
+// Add this to your existing DOMContentLoaded event listener
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+        setTimeout(() => {
+            if (map2D) {
+                map2D.invalidateSize(true);
+            }
+            if (map3D) {
+                map3D.resize();
+            }
+        }, 100);
+    }
+});
+
+        // Icons for categories
+        const categoryIcons = {
+            "Flood Prone Area": L.icon({ iconUrl: '/static/icons/flood.png', iconSize: [32, 32] }),
+            "Traffic": L.icon({ iconUrl: '/static/icons/traffic.png', iconSize: [32, 32] }),
+            "Quarantined Area": L.icon({ iconUrl: '/static/icons/quarantine.png', iconSize: [32, 32] }),
+            "Fire Prone Area": L.icon({ iconUrl: '/static/icons/fire.png', iconSize: [32, 32] }),
+            "Under Construction": L.icon({ iconUrl: '/static/icons/underconstruction.png', iconSize: [32, 32] }),
+            "Tower": L.icon({ iconUrl: '/static/icons/tower.png', iconSize: [32, 32] }),
+            "Residential Building": L.icon({ iconUrl: '/static/icons/residential.png', iconSize: [32, 32] }),
+            "Sari-Sari Store": L.icon({ iconUrl: '/static/icons/sari-sari.png', iconSize: [32, 32] }),
+            "default": L.icon({ iconUrl: '/static/icons/default.png', iconSize: [32, 32] })
+        };
+
+        function toggleMapView(view) {
+    const map2DElement = document.getElementById('map-2d');
+    const map3DElement = document.getElementById('map-3d');
+    const styleControls = document.getElementById('style-controls');
+    
+    // Reset active states
+    document.querySelectorAll('.view-toggle').forEach(btn => btn.classList.remove('active'));
+    
+    if (view === '2d') {
+        document.getElementById('2d-view').classList.add('active');
+        map2DElement.style.display = 'block';
+        map3DElement.style.display = 'none';
+        styleControls.style.display = 'none';
+        currentView = '2d';
+        map2D.invalidateSize(); // Force Leaflet to recalculate map size
+        
+        // Refresh 2D markers
+        refreshMarkers2D();
+    } else {
+        document.getElementById('3d-view').classList.add('active');
+        map2DElement.style.display = 'none';
+        map3DElement.style.display = 'block';
+        styleControls.style.display = 'block';
+        currentView = '3d';
+        map3D.resize(); // Ensure Mapbox map resizes to full container
+        
+        // Refresh 3D markers
+        refreshMarkers3D();
+    }
+}
+
+        // Refresh markers for 2D view
+        function refreshMarkers2D() {
+    // Clear existing markers
+    markers.forEach(m => {
+        if (currentView === '2d') {
+            map2D.removeLayer(m);
+        } else {
+            m.remove();
+        }
+    });
+    
+    // Re-add markers for 2D view
+    markers.forEach(m => {
+        if (currentView === '2d') {
+            addMarkerToMap(m.options);
+        }
+    });
+}
+
+function refreshMarkers3D() {
+    // Clear existing markers
+    markers.forEach(m => {
+        if (currentView === '2d') {
+            map2D.removeLayer(m);
+        } else {
+            m.remove();
+        }
+    });
+    
+    // Re-add markers for 3D view
+    markers.forEach(m => {
+        if (currentView === '3d') {
+            addMarkerToMap(m.options);
+        }
+    });
+}
+
+function addMarkerToMap(markerData) {
+    if (currentView === '2d') {
+        // 2D marker (Leaflet) - existing code remains the same
+        const marker = L.marker([markerData.latitude, markerData.longitude], {
+            title: markerData.label,
+            icon: categoryIcons[markerData.category] || categoryIcons["default"]
+        }).addTo(map2D);
+
+        // Store the marker ID and other data
+        marker.options.id = markerData.id;
+        marker.options.label = markerData.label;
+        marker.options.description = markerData.description;
+        marker.options.category = markerData.category;
+        marker.options.address = markerData.address;
+        marker.options.latitude = markerData.latitude;
+        marker.options.longitude = markerData.longitude;
+        
+        // Create popup but don't open it yet
+        const popup = L.popup();
+        marker.bindPopup(popup);
+
+        // Load marker data and update popup
+        fetch(`/get_marker_data/${markerData.id}`)
+            .then(response => response.json())
+            .then(data => {
+                let popupContent = `
+                    <b>${markerData.label}</b>: ${markerData.description} (${markerData.category})
+                    <hr>
+                    <div style="max-height: 500px; overflow-y: auto;">
+                        <h4>Marker Data:</h4>
+                `;
+
+                if (data && data.length > 0) {
+                    data.forEach(item => {
+                        popupContent += `
+                            <div style="margin-bottom: 10px; padding: 5px; border-bottom: 1px solid #eee;">
+                                <strong>${item.category}</strong><br>
+                                Value: ${item.data_value}<br>
+                                Notes: ${item.notes || 'N/A'}<br>
+                                Time: ${new Date(item.timestamp).toLocaleString()}<br>
+                                ${item.image_path ? `<img src="${item.image_path}" height="200">` : ''}
+                            </div>
+                        `;
+                    });
+                } else {
+                    popupContent += '<p>No data entries yet</p>';
+                }
+
+                popupContent += '</div>';
+                marker.setPopupContent(popupContent);
+            })
+            .catch(error => {
+                console.error('Error loading marker data for popup:', error);
+                marker.setPopupContent(`<b>${markerData.label}</b>: ${markerData.description} (${markerData.category})`);
+            });
+
+        markers.push(marker);
+        return marker;
+    } else {
+        // 3D marker (Mapbox)
+        // Create a custom HTML element for the marker
+        const el = document.createElement('div');
+        el.className = 'mapboxgl-marker custom-category-marker';
+
+        // Use the same icon logic as 2D map
+        const iconUrl = `/static/icons/${(markerData.category || 'default').toLowerCase()}.png`;
+
+        // Check if the icon file exists
+        fetch(iconUrl, { method: 'HEAD' })
+            .then(response => {
+                if (response.ok) {
+                    // Icon file exists, use it
+                    el.style.backgroundImage = `url(${iconUrl})`;
+                    el.style.backgroundSize = 'contain';
+                    el.style.backgroundRepeat = 'no-repeat';
+                    el.style.backgroundPosition = 'center';
+                    el.style.width = '32px';
+                    el.style.height = '32px';
+                } else {
+                    // Icon file not found, use a bright green dot
+                    el.style.backgroundColor = 'lime';
+                    el.style.borderRadius = '50%';
+                    el.style.width = '12px';
+                    el.style.height = '12px';
+                }
+            })
+            .catch(() => {
+                // Error checking icon file, use a bright green dot
+                el.style.backgroundColor = 'lime';
+                el.style.borderRadius = '50%';
+                el.style.width = '12px';
+                el.style.height = '12px';
+            });
+
+        el.style.cursor = 'pointer';
+
+        // Create the marker
+        const marker = new mapboxgl.Marker(el)
+            .setLngLat([markerData.longitude, markerData.latitude])
+            .addTo(map3D);
+
+        // Fetch marker data and create popup
+        fetch(`/get_marker_data/${markerData.id}`)
+            .then(response => response.json())
+            .then(data => {
+                let popupContent = `
+                    <b>${markerData.label}</b>: ${markerData.description} (${markerData.category})
+                    <hr>
+                    <div style="max-height: 500px; overflow-y: auto;">
+                        <h4>Marker Data:</h4>
+                `;
+
+                if (data && data.length > 0) {
+                    data.forEach(item => {
+                        popupContent += `
+                            <div style="margin-bottom: 10px; padding: 5px; border-bottom: 1px solid #eee;">
+                                <strong>${item.category}</strong><br>
+                                Value: ${item.data_value}<br>
+                                Notes: ${item.notes || 'N/A'}<br>
+                                Time: ${new Date(item.timestamp).toLocaleString()}<br>
+                                ${item.image_path ? `<img src="${item.image_path}" height="200">` : ''}
+                            </div>
+                        `;
+                    });
+                } else {
+                    popupContent += '<p>No data entries yet</p>';
+                }
+
+                popupContent += '</div>';
+                
+                const popup = new mapboxgl.Popup({ offset: 25 })
+                    .setHTML(popupContent);
+                marker.setPopup(popup);
+            })
+            .catch(error => {
+                console.error('Error loading marker data for popup:', error);
+                const popup = new mapboxgl.Popup({ offset: 25 })
+                    .setHTML(`<b>${markerData.label}</b>: ${markerData.description} (${markerData.category})`);
+                marker.setPopup(popup);
+            });
+        
+        // Store additional data on the marker
+        marker.options = {
+            id: markerData.id,
+            label: markerData.label,
+            description: markerData.description,
+            category: markerData.category,
+            address: markerData.address,
+            latitude: markerData.latitude,
+            longitude: markerData.longitude
+        };
+
+        markers.push(marker);
+        return marker;
+    }
+}
+function placeMarker() {
+    const label = document.getElementById('markerLabel').value;
+    const description = document.getElementById('markerDescription').value;
+    const category = document.getElementById('markerCategory').value;
+
+    if (!label || !description || !category) {
+        alert("Please provide a label, description, and category.");
+        return;
+    }
+
+    const targetMap = currentView === '2d' ? map2D : map3D;
+    
+    if (currentView === '2d') {
+        targetMap.once('click', e => {
+            const { lat, lng } = e.latlng;
+            currentMarker = L.marker([lat, lng], { 
+                title: label, 
+                icon: categoryIcons[category] || categoryIcons["default"] 
+            }).addTo(targetMap);
+
+            const popup = L.popup().setContent(`<b>${label}</b>: ${description} (${category})`);
+            currentMarker.bindPopup(popup);
+            popup.openPopup();
+
+            // Explicitly set these options
+            currentMarker.options = {
+                label: label,
+                description: description,
+                category: category,
+                latitude: lat,
+                longitude: lng
+            };
+
+            markers.push(currentMarker);
+        });
+    } else {
+        targetMap.once('click', e => {
+            const { lng, lat } = e.lngLat;
+            
+            // Create marker element with icon or bright green dot
+            const el = document.createElement('div');
+            el.className = 'mapboxgl-marker custom-category-marker';
+            
+            const iconUrl = `/static/icons/${category.toLowerCase()}.png`;
+            
+            fetch(iconUrl, { method: 'HEAD' })
+                .then(response => {
+                    if (response.ok) {
+                        el.style.backgroundImage = `url(${iconUrl})`;
+                        el.style.backgroundSize = 'contain';
+                        el.style.backgroundRepeat = 'no-repeat';
+                        el.style.backgroundPosition = 'center';
+                        el.style.width = '32px';
+                        el.style.height = '32px';
+                    } else {
+                        el.style.backgroundColor = 'lime';
+                        el.style.borderRadius = '50%';
+                        el.style.width = '12px';
+                        el.style.height = '12px';
+                    }
+                })
+                .catch(() => {
+                    el.style.backgroundColor = 'lime';
+                    el.style.borderRadius = '50%';
+                    el.style.width = '12px';
+                    el.style.height = '12px';
+                });
+
+            el.style.cursor = 'pointer';
+
+            currentMarker = new mapboxgl.Marker(el)
+                .setLngLat([lng, lat])
+                .addTo(targetMap);
+
+            const popup = new mapboxgl.Popup().setHTML(`<b>${label}</b>: ${description} (${category})`);
+            currentMarker.setPopup(popup);
+            currentMarker.togglePopup();
+
+            // Explicitly set these options
+            currentMarker.options = {
+                label: label,
+                description: description,
+                category: category,
+                latitude: lat,
+                longitude: lng
+            };
+
+            markers.push(currentMarker);
+        });
+    }
+}
+
+// Update these functions to handle both 2D and 3D views
+function refreshMarkers2D() {
+    // Clear existing markers from 2D map
+    markers.forEach(m => {
+        if (m.type === '2d') {
+            map2D.removeLayer(m);
+        }
+    });
+    
+    // Re-add markers for 2D view
+    markers.forEach(m => {
+        if (currentView === '2d') {
+            addMarkerToMap(m.options);
+        }
+    });
+}
+
+function refreshMarkers3D() {
+    // Clear existing markers from 3D map
+    markers.forEach(m => {
+        if (m.type === '3d') {
+            m.remove();
+        }
+    });
+    
+    // Re-add markers for 3D view
+    markers.forEach(m => {
+        if (currentView === '3d') {
+            addMarkerToMap(m.options);
+        }
+    });
+}
+
+// Modify the fetch markers function
+function fetchMarkers() {
+    fetch('/get_markers')
+        .then(response => response.json())
+        .then(data => {
+            // Clear existing markers from both maps
+            markers.forEach(marker => {
+                if (currentView === '2d') {
+                    map2D.removeLayer(marker);
+                } else {
+                    marker.remove();
+                }
+            });
+            markers = [];
+            
+            // Add markers to current view
+            data.markers.forEach(marker => addMarkerToMap(marker));
+            populateMarkerTable();
+        });
+}
+
+        // Helper function to get color based on category
+        function getCategoryColor(category) {
+            const colorMap = {
+                "Flood Prone Area": "#0000FF",
+                "Traffic": "#FF0000",
+                "Quarantined Area": "#800080",
+                "Fire Prone Area": "#FFA500",
+                // Add more categories as needed
+                "default": "#000000"
+            };
+            return colorMap[category] || colorMap["default"];
+        }
+
+        // Place marker function
+        function placeMarker() {
+            const label = document.getElementById('markerLabel').value;
+            const description = document.getElementById('markerDescription').value;
+            const category = document.getElementById('markerCategory').value;
+
+            if (!label || !description || !category) {
+                alert("Please provide a label, description, and category.");
+                return;
+            }
+
+            const targetMap = currentView === '2d' ? map2D : map3D;
+            
+            if (currentView === '2d') {
+                targetMap.once('click', e => {
+                    const { lat, lng } = e.latlng;
+                    currentMarker = L.marker([lat, lng], { 
+                        title: label, 
+                        icon: categoryIcons[category] || categoryIcons["default"] 
+                    }).addTo(targetMap);
+
+                    const popup = L.popup().setContent(`<b>${label}</b>: ${description} (${category})`);
+                    currentMarker.bindPopup(popup);
+                    popup.openPopup();
+
+                    currentMarker.options.label = label;
+                    currentMarker.options.description = description;
+                    currentMarker.options.category = category;
+                    markers.push(currentMarker);
+                });
+            } else {
+                targetMap.once('click', e => {
+                    const { lng, lat } = e.lngLat;
+                    currentMarker = new mapboxgl.Marker({
+                        color: getCategoryColor(category)
+                    })
+                    .setLngLat([lng, lat])
+                    .addTo(targetMap);
+
+                    const popup = new mapboxgl.Popup().setHTML(`<b>${label}</b>: ${description} (${category})`);
+                    currentMarker.setPopup(popup);
+                    currentMarker.togglePopup();
+
+                    currentMarker.options = {
+                        label: label,
+                        description: description,
+                        category: category,
+                        latitude: lat,
+                        longitude: lng
+                    };
+                    markers.push(currentMarker);
+                });
+            }
+        }
+
+        // Initialize everything when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize modal elements
+
+            
+            window.currentMarkerId = null;
+            const modal = document.getElementById('markerDataModal');
+            const span = document.getElementsByClassName('close')[0];
+
+            // Modal close handlers
+            window.onclick = function(event) {
+                if (event.target == modal) {
+                    modal.style.display = "none";
+                }
+            }
+
+            if (span) {
+                span.onclick = function() {
+                    modal.style.display = "none";
+                }
+            }
+
+            // Initialize filter button
+            document.getElementById("toggleFilterButton").addEventListener("click", function () {
+                const filterSection = document.getElementById("filterSection");
+                if (filterSection.style.display === "none" || filterSection.style.display === "") {
+                    filterSection.style.display = "block";
+                } else {
+                    filterSection.style.display = "none";
+                }
+            });
+
+            // Initialize maps
+            initializeMaps();
+
+            // Load existing markers
+            fetch('/get_markers')
+                .then(response => response.json())
+                .then(data => {
+                    data.markers.forEach(marker => addMarkerToMap(marker));
+                    populateMarkerTable();
+                });
+
+            // Add event listeners for view toggle
+            document.getElementById('2d-view').addEventListener('click', () => toggleMapView('2d'));
+            document.getElementById('3d-view').addEventListener('click', () => toggleMapView('3d'));
+
+            // Setup map style controls
+            document.querySelectorAll('.style-button').forEach(button => {
+                button.addEventListener('click', () => {
+                    const style = button.dataset.style;
+                    map3D.setStyle(style);
+                    
+                    // Refresh 3D markers after style change
+                    refreshMarkers3D();
+                });
+            });
+        });
+        function saveMarker() {
+    if (!currentMarker) {
+        alert("Please place a marker first.");
+        return;
+    }
+
+    let lat, lng;
+    let label, description, category;
+
+    // Handle both 2D (Leaflet) and 3D (Mapbox) markers
+    if (currentView === '2d') {
+        // Leaflet marker
+        lat = currentMarker.getLatLng().lat;
+        lng = currentMarker.getLatLng().lng;
+        label = currentMarker.options.label;
+        description = currentMarker.options.description;
+        category = currentMarker.options.category;
+    } else {
+        // Mapbox marker
+        const lngLat = currentMarker.getLngLat();
+        lat = lngLat.lat;
+        lng = lngLat.lng;
+        label = currentMarker.options.label;
+        description = currentMarker.options.description;
+        category = currentMarker.options.category;
+    }
+
+    // Add User-Agent and other recommended headers
+    const geocodingAPI = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`;
+    
+    fetch(geocodingAPI, {
+        headers: {
+            'User-Agent': 'YourAppName/1.0 (your-email@example.com)',
+            'Referer': window.location.origin
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(locationData => {
+        // Fallback if no address is found
+        const address = locationData.display_name || 'Address not found';
+
+        // Now save marker with address
+        return fetch('/add_marker', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                label, 
+                description, 
+                category, 
+                latitude: lat, 
+                longitude: lng,
+                address: address
+            })
+        });
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(data.success || data.error);
+        fetchMarkers();
+        
+        // Reset currentMarker after successful save
+        currentMarker = null;
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        
+        // Fallback to save marker without address
+        fetch('/add_marker', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                label, 
+                description, 
+                category, 
+                latitude: lat, 
+                longitude: lng,
+                address: 'Address not available'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert('Marker saved without address due to geocoding error');
+            fetchMarkers();
+            
+            // Reset currentMarker after successful save
+            currentMarker = null;
+        })
+        .catch(saveError => {
+            alert('Error saving marker: ' + saveError);
+        });
+    });
+}
+
+    // Fetch markers from the server
+    function fetchMarkers() {
+        fetch('/get_markers')
+            .then(response => response.json())
+            .then(data => {
+                markers.forEach(marker => marker.remove());
+                markers = [];
+                data.markers.forEach(marker => addMarkerToMap(marker));
+                populateMarkerTable();
+            });
+    }
+
+    // Filter markers function
+    function filterMarkers() {
+    const selectedCategories = [];
+    if (document.getElementById('flood').checked) selectedCategories.push("Flood Prone Area");
+    if (document.getElementById('traffic').checked) selectedCategories.push("Traffic");
+    if (document.getElementById('fireprone').checked) selectedCategories.push("Fire Prone Area");
+    if (document.getElementById('quarantine').checked) selectedCategories.push("Quarantined Area");
+    if (document.getElementById('tower').checked) selectedCategories.push("Tower");
+    if (document.getElementById('shelter').checked) selectedCategories.push("Shelter");
+
+    markers.forEach(marker => {
+        if (selectedCategories.includes(marker.options.category)) {
+            if (currentView === '2d') {
+                marker.addTo(map2D);
+            } else {
+                marker.addTo(map3D);
+            }
+        } else {
+            if (currentView === '2d') {
+                map2D.removeLayer(marker);
+            } else {
+                marker.remove();
+            }
+        }
+    });
+}
+
+function populateMarkerTable() {
+    const tableBody = document.getElementById('markerTable').querySelector('tbody');
+    tableBody.innerHTML = '';
+
+    markers.forEach(marker => {
+        const row = document.createElement('tr');
+        const label = marker.options.label || '';
+        const description = marker.options.description || '';
+        const category = marker.options.category || '';
+        const address = marker.options.address || '';
+        
+        // Determine lat and lng based on current view
+        const { lat, lng } = currentView === '2d' 
+            ? marker.getLatLng() 
+            : { lat: marker.options.latitude, lng: marker.options.longitude };
+        
+        const markerId = marker.options.id;
+
+        row.style.cursor = 'pointer';
+        
+        row.onclick = function(e) {
+            if (e.target.tagName !== 'BUTTON') {
+                // Deselect all rows first
+                tableBody.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
+                
+                // Select current row
+                row.classList.add('selected');
+                
+                // Set current marker ID
+                window.currentMarkerId = markerId;
+                
+                // Zoom and open popup based on current view
+                if (currentView === '2d') {
+                    map2D.setView([lat, lng], 16);
+                    marker.openPopup();
+                } else {
+                    // For 3D view, use Mapbox's flyTo and toggle popup
+                    map3D.flyTo({
+                        center: [lng, lat],
+                        zoom: 16
+                    });
+                    
+                    // Ensure the marker is on the map
+                    if (!marker.getElement()) {
+                        marker.addTo(map3D);
+                    }
+                    
+                    // Toggle popup
+                    marker.togglePopup();
+                }
+            }
+        };
+
+        row.innerHTML = `
+            <td>${label}</td>
+            <td>${description}</td>
+            <td>${category}</td>
+            <td>${lat.toFixed(6)}</td>
+            <td>${lng.toFixed(6)}</td>
+            <td>${address}</td>
+            <td>
+                <button onclick="openMarkerData('${markerId}')" class="btn">Manage Data</button>
+            </td>
+        `;
+
+        tableBody.appendChild(row);
+    });
+}
+// Add some CSS to highlight selected row
+const style = document.createElement('style');
+style.textContent = `
+    .selected {
+        background-color: #e0e0e0;
+    }
+`;
+document.head.appendChild(style);
+    // Marker data management functions
+    function openMarkerData(markerId) {
+    const modal = document.getElementById('markerDataModal');
+    if (!modal) {
+        console.error('Modal element not found');
+        return;
+    }
+    window.currentMarkerId = markerId;
+    modal.style.display = 'block';
+    loadMarkerData(markerId);
+}
+
+    function loadMarkerData(markerId) {
+    if (!markerId) {
+        console.error('No marker ID provided');
+        return;
+    }
+
+    fetch(`/get_marker_data/${markerId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Update the data display in the modal
+            const modal = document.getElementById('markerDataModal');
+            const dataDisplay = document.createElement('div');
+            dataDisplay.className = 'data-display';
+            
+            let dataHtml = '<h3>Current Data</h3>';
+            if (data && data.length > 0) {
+                dataHtml += '<div class="data-list">';
+                data.forEach(item => {
+                    dataHtml += `
+                        <div class="data-item">
+                            <p><strong>Category:</strong> ${item.category || 'N/A'}</p>
+                            <p><strong>Value:</strong> ${item.data_value || 'N/A'}</p>
+                            <p><strong>Notes:</strong> ${item.notes || 'N/A'}</p>
+                            <p><strong>Time:</strong> ${item.timestamp ? new Date(item.timestamp).toLocaleString() : 'N/A'}</p>
+                            ${item.image_path ? `<img src="${item.image_path}" height="200" alt="Data Image">` : ''}
+                            <div class="data-actions">
+                                <button onclick="editMarkerData(${item.id})" class="btn">Edit</button>
+                                <button onclick="deleteMarkerData(${item.id})" class="btn">Delete</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                dataHtml += '</div>';
+            } else {
+                dataHtml += '<p>No data entries available</p>';
+            }
+            
+            dataDisplay.innerHTML = dataHtml;
+            
+            // Clear existing data display if any
+            const existingDisplay = modal.querySelector('.data-display');
+            if (existingDisplay) {
+                existingDisplay.remove();
+            }
+            
+            // Add new data display before the form
+            const dataForm = modal.querySelector('.data-form');
+            modal.querySelector('.modal-content').insertBefore(dataDisplay, dataForm);
+
+            // Update the marker popup
+            updateMarkerPopup(markerId, data);
+        })
+        .catch(error => {
+            console.error('Error loading marker data:', error);
+            alert('Error loading marker data. Please try again.');
+        });
+}
+function saveMarkerData() {
+    const formData = new FormData();
+    formData.append('marker_id', window.currentMarkerId);
+    formData.append('category', document.getElementById('dataCategory').value);
+    formData.append('data_value', document.getElementById('dataValue').value);
+    formData.append('notes', document.getElementById('dataNotes').value);
+    
+    const imageFile = document.getElementById('dataImage').files[0];
+    if (imageFile) {
+        formData.append('image', imageFile);
+    }
+
+    fetch('/add_marker_data', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            loadMarkerData(window.currentMarkerId);
+            document.getElementById('dataValue').value = '';
+            document.getElementById('dataNotes').value = '';
+            document.getElementById('dataImage').value = '';
+        } else {
+            alert('Error saving data: ' + data.error);
+        }
+    });
+}
+
+function deleteMarkerData(dataId) {
+    if (confirm('Are you sure you want to delete this data?')) {
+        fetch(`/delete_marker_data/${dataId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                loadMarkerData(window.currentMarkerId);
+            } else {
+                alert('Error deleting data: ' + data.error);
+            }
+        });
+    }
+}
+function editMarker() {
+    // Find the selected marker (if any)
+    const selectedMarker = markers.find(m => m.options.id === window.currentMarkerId);
+    
+    if (!selectedMarker) {
+        alert("Please select a marker to edit.");
+        return;
+    }
+
+    // Create a modal or form for editing
+    const editModal = document.createElement('div');
+    editModal.innerHTML = `
+        <div id="editMarkerModal" class="modal" style="display:block;">
+            <div class="modal-content">
+                <h2>Edit Marker</h2>
+                <label>Label:</label>
+                <input type="text" id="editLabelInput" value="${selectedMarker.options.label}">
+                <label>Description:</label>
+                <input type="text" id="editDescriptionInput" value="${selectedMarker.options.description}">
+                <label>Category:</label>
+                <select id="editCategoryInput">
+                    ${Array.from(document.getElementById('markerCategory').options)
+                        .map(option => 
+                            `<option value="${option.value}" ${option.value === selectedMarker.options.category ? 'selected' : ''}>${option.value}</option>`
+                        ).join('')
+                    }
+                </select>
+                <button onclick="saveEditedMarker()">Save Changes</button>
+                <button onclick="document.getElementById('editMarkerModal').remove()">Cancel</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(editModal);
+}
+
+function saveEditedMarker() {
+    const selectedMarker = markers.find(m => m.options.id === window.currentMarkerId);
+    
+    if (!selectedMarker) {
+        alert("No marker selected for editing.");
+        return;
+    }
+
+    const updatedMarker = {
+        label: document.getElementById('editLabelInput').value,
+        description: document.getElementById('editDescriptionInput').value,
+        category: document.getElementById('editCategoryInput').value
+    };
+
+    fetch(`/edit_marker/${selectedMarker.options.id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updatedMarker)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update marker options
+            selectedMarker.options.label = updatedMarker.label;
+            selectedMarker.options.description = updatedMarker.description;
+            selectedMarker.options.category = updatedMarker.category;
+
+            // Update marker icon if category changed
+            const newIcon = categoryIcons[updatedMarker.category] || categoryIcons["default"];
+            selectedMarker.setIcon(newIcon);
+
+            // Remove edit modal
+            const editModal = document.getElementById('editMarkerModal');
+            if (editModal) editModal.remove();
+
+            // Refresh markers table
+            populateMarkerTable();
+
+            alert('Marker updated successfully');
+        } else {
+            alert(data.error || 'Failed to update marker');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating marker');
+    });
+}
+
+function deleteMarker() {
+    const selectedMarker = markers.find(m => m.options.id === window.currentMarkerId);
+    
+    if (!selectedMarker) {
+        alert("Please select a marker to delete.");
+        return;
+    }
+
+    if (confirm('Are you sure you want to delete this marker?')) {
+        fetch(`/delete_marker/${selectedMarker.options.id}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove marker from map and markers array
+                map.removeLayer(selectedMarker);
+                markers = markers.filter(m => m !== selectedMarker);
+                
+                // Refresh marker table
+                populateMarkerTable();
+
+                alert('Marker deleted successfully');
+            } else {
+                alert('Failed to delete marker');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting marker');
+        });
+    }
+}
+   // Search location function
+function searchLocation() {
+    const address = document.getElementById('searchAddress').value;
+    const lat = parseFloat(document.getElementById('searchLat').value);
+    const lon = parseFloat(document.getElementById('searchLon').value);
+
+    if (address) {
+        const geocodingAPI = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;
+        fetch(geocodingAPI, {
+            headers: {
+                'User-Agent': 'YourAppName/1.0 (your-email@example.com)',
+                'Referer': window.location.origin
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.length > 0) {
+                    const { lat, lon } = data[0];
+                    if (currentView === '2d') {
+                        map2D.setView([lat, lon], 15);
+                        L.marker([lat, lon]).addTo(map2D)
+                            .bindPopup(`Address: ${data[0].display_name}`)
+                            .openPopup();
+                    } else {
+                        map3D.flyTo({
+                            center: [lon, lat],
+                            zoom: 15
+                        });
+                        new mapboxgl.Marker()
+                            .setLngLat([lon, lat])
+                            .setPopup(new mapboxgl.Popup().setText(`Address: ${data[0].display_name}`))
+                            .addTo(map3D)
+                            .togglePopup();
+                    }
+                } else {
+                    alert("Address not found.");
+                }
+            })
+            .catch(() => alert("Error in geocoding address."));
+    } else if (!isNaN(lat) && !isNaN(lon)) {
+        if (currentView === '2d') {
+            map2D.setView([lat, lon], 15);
+        } else {
+            map3D.flyTo({
+                center: [lon, lat],
+                zoom: 15
+            });
+        }
+    } else {
+        alert("Please provide a valid address or coordinates.");
+    }
+}
+</script>
+<script>function updateMarkerPopup(markerId, data) {
+    const marker = markers.find(m => m.options.id === markerId);
+    if (marker) {
+        let popupContent = `
+            <b>${marker.options.label}</b>: ${marker.options.description} (${marker.options.category})
+            <hr>
+            <div style="max-height: 200px; overflow-y: auto;">
+                <h4>Marker Data:</h4>
+        `;
+
+        if (data && data.length > 0) {
+            data.forEach(item => {
+                popupContent += `
+                    <div style="margin-bottom: 10px; padding: 5px; border-bottom: 1px solid #eee;">
+                        <strong>${item.category}</strong><br>
+                        Value: ${item.data_value}<br>
+                        Notes: ${item.notes || 'N/A'}<br>
+                        Time: ${new Date(item.timestamp).toLocaleString()}<br>
+                        ${item.image_path ? `<img src="${item.image_path}" height="150">` : ''}
+                    </div>
+                `;
+            });
+        } else {
+            popupContent += '<p>No data entries yet</p>';
+        }
+
+        popupContent += '</div>';
+        marker.setPopupContent(popupContent);
+    }
+}
+
+function searchMarkers() {
+    // Get the search keyword
+    const searchKeyword = document.getElementById('searchMarkers').value.toLowerCase().trim();
+
+    // If no keyword, show all markers
+    if (!searchKeyword) {
+        markers.forEach(marker => {
+            // Ensure the marker is on the current map
+            if (currentView === '2d') {
+                if (!map2D.hasLayer(marker)) {
+                    marker.addTo(map2D);
+                }
+            } else {
+                if (!map3D.getCanvas().contains(marker.getElement())) {
+                    marker.addTo(map3D);
+                }
+            }
+        });
+        populateMarkerTable();
+        return;
+    }
+
+    // Filter markers based on search keyword
+    const filteredMarkers = markers.filter(marker => {
+        const label = (marker.options.label || '').toLowerCase();
+        const description = (marker.options.description || '').toLowerCase();
+        const category = (marker.options.category || '').toLowerCase();
+        const address = (marker.options.address || '').toLowerCase();
+
+        return (
+            label.includes(searchKeyword) ||
+            description.includes(searchKeyword) ||
+            category.includes(searchKeyword) ||
+            address.includes(searchKeyword)
+        );
+    });
+
+    // Remove all markers from the current map
+    markers.forEach(marker => {
+        if (currentView === '2d') {
+            map2D.removeLayer(marker);
+        } else {
+            marker.remove();
+        }
+    });
+
+    // Add filtered markers back to the current map
+    filteredMarkers.forEach(marker => {
+        if (currentView === '2d') {
+            marker.addTo(map2D);
+        } else {
+            marker.addTo(map3D);
+        }
+    });
+
+    // Update the table with filtered markers
+    const tableBody = document.getElementById('markerTable').querySelector('tbody');
+    tableBody.innerHTML = '';
+
+    filteredMarkers.forEach(marker => {
+        const row = document.createElement('tr');
+        const label = marker.options.label || '';
+        const description = marker.options.description || '';
+        const category = marker.options.category || '';
+        const address = marker.options.address || '';
+        
+        // Determine lat and lng based on current view
+        const { lat, lng } = currentView === '2d' 
+            ? marker.getLatLng() 
+            : { lat: marker.options.latitude, lng: marker.options.longitude };
+        
+        const markerId = marker.options.id;
+
+        row.style.cursor = 'pointer';
+        
+        row.onclick = function(e) {
+            if (e.target.tagName !== 'BUTTON') {
+                // Deselect all rows first
+                tableBody.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
+                
+                // Select current row
+                row.classList.add('selected');
+                
+                // Set current marker ID
+                window.currentMarkerId = markerId;
+                
+                // Zoom and open popup based on current view
+                if (currentView === '2d') {
+                    map2D.setView([lat, lng], 16);
+                    marker.openPopup();
+                } else {
+                    map3D.flyTo({
+                        center: [lng, lat],
+                        zoom: 16
+                    });
+                    marker.togglePopup();
+                }
+            }
+        };
+
+        row.innerHTML = `
+            <td>${label}</td>
+            <td>${description}</td>
+            <td>${category}</td>
+            <td>${lat.toFixed(6)}</td>
+            <td>${lng.toFixed(6)}</td>
+            <td>${address}</td>
+            <td>
+                <button onclick="openMarkerData('${markerId}')" class="btn">Manage Data</button>
+            </td>
+        `;
+
+        tableBody.appendChild(row);
+    });
+
+    // Show number of results
+    alert(`Found ${filteredMarkers.length} matching markers`);
+}
+    </script>
+</body>
+</html>

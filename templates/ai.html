@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="{{ url_for('static', filename='js/scripts.js') }}" defer></script>
+    <title>Incident Prediction and Analysis</title>
+    <!-- Plotly JS for rendering charts -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    
+</head>
+{% include 'header.html' %}
+<body>
+    <div class="container">
+        <h1>Incident Prediction and Analysis</h1>
+       
+        <!-- Form for filtering data -->
+        <form method="POST" action="/ai">
+            <div>
+                <label for="location">Location:</label>
+                <input type="text" id="location" name="location" value="{{ request.form.get('location') }}">
+            </div>
+            <div>
+                <label for="category">Category:</label>
+                <input type="text" id="category" name="category" value="{{ request.form.get('category') }}">
+            </div>
+            <div>
+                <label for="query">Natural Language Query:</label>
+                <input type="text" id="query" name="query" value="{{ request.form.get('query') }}">
+            </div>
+            <button type="submit">Submit</button>
+        </form>
+
+        <!-- Crime Prediction Section -->
+        <div class="result-container">
+            <h2>Incident Prediction</h2>
+        
+            <table border="1">
+                <thead>
+                  <tr>
+                    <th>Location</th>
+                    <th>Incident Count</th>
+                    <th>Most Common Category</th>
+                    <th>Dates of Incidents</th>
+                    <th>Forecasted Incidents (Next 2 Weeks)</th>
+                    <th>Forecast Interpretation</th>
+                 
+                    <th>Prediction Summary and Action Points</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for prediction in incident_prediction|sort(attribute='incident_count', reverse=true) %}
+                    <tr>
+                      <td>{{ prediction['location'] }}</td>
+                      <td>{{ prediction['incident_count'] }}</td>
+                      <td>{{ prediction['most_common_category'] }}</td>
+                      <td>{{ prediction['start_date'] }} to {{ prediction['end_date'] }}</td>
+                      <td>
+                        <ul>
+                          {% for forecast in prediction['incident_prediction']['forecasted_incidents_next_2_weeks'] %}
+                            <li>{{ forecast }}</li>
+                          {% endfor %}
+                        </ul>
+                      </td>
+                      <td>{{ prediction['incident_prediction']['forecast_interpretation'] }}</td>
+                     
+                      <td>
+                        <strong>Action Points:</strong>
+                        <ul>
+                            {% for action in prediction['incident_prediction']['action_points'] %}
+                            <li>{{ action }}</li>
+                            {% endfor %}
+                        </ul>
+                        <strong>Categories to Focus:</strong>
+<ul>
+    {% if prediction['focus_categories'] %}
+        {% for category, count in prediction['focus_categories'] %}
+            <li>{{ category }}: {{ count }} incidents</li>
+        {% endfor %}
+    {% else %}
+        <li>No categories to display.</li>
+    {% endif %}
+</ul>
+                    </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+        </div>
+<!-- Display Location Chart -->
+<div class="result-container">
+    <h2>Incidents by Location</h2>
+    <div id="location-chart"></div>
+    <script>
+        // Prepare data for the location chart
+        var locations = [];
+        var incidentCounts = [];
+        
+        {% for record in location_stats %}
+            locations.push("{{ record.location }}");
+            incidentCounts.push({{ record.incident_count }});
+        {% endfor %}
+        
+        // Create the bar chart using Plotly
+        var trace1 = {
+            x: locations,
+            y: incidentCounts,
+            type: 'bar',
+            marker: {
+                color: 'rgb(55, 83, 109)',
+            },
+        };
+
+        var data = [trace1];
+
+        var layout = {
+            title: 'Incident Counts by Location',
+            xaxis: {
+                title: 'Location',
+            },
+            yaxis: {
+                title: 'Incident Count',
+            },
+        };
+
+        Plotly.newPlot('location-chart', data, layout);
+    </script>
+</div>
+        <!-- Display Category Chart -->
+        <div class="result-container">
+            <h2>Incidents by Category</h2>
+            <div id="category-chart">
+                {{ category_fig_html | safe }}
+            </div>
+        </div>
+
+        <!-- Natural Language Query Result -->
+        <div class="result-container">
+            <h2>Natural Language Query Result</h2>
+            <p>{{ query_result }}</p>
+        </div>
+
+        <!-- Display Incident Stats Table -->
+        <div class="result-container">
+            <h2>Incident Statistics</h2>
+
+            <h3>By Location</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Location</th>
+                        <th>Incident Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in location_stats %}
+                    <tr>
+                        <td>{{ record.location }}</td>
+                        <td>{{ record.incident_count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <h3>By Category</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Incident Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in category_stats %}
+                    <tr>
+                        <td>{{ record.category }}</td>
+                        <td>{{ record.incident_count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

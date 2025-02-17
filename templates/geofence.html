@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geofence Map</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+    <style>
+        #map { height: 60vh; width: 100%; }
+        #controls { margin: 10px; }
+        table {
+            width: 100%;
+            margin-top: 20px;
+            border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+        .btn {
+            padding: 5px 10px;
+            margin: 2px;
+            cursor: pointer;
+        }
+        .edit-btn {
+            background-color: yellow;
+        }
+        .delete-btn {
+            background-color: red;
+            color: white;
+        }
+    </style>    <style>
+      
+        #controls input[type="text"] {
+            width: 200px;
+            height: 40px;
+            padding: 10px;
+            border: 1px solid #cccccc;
+            border-radius: 5px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        #controls input[type="text"]:focus {
+            border-color: #007bff;
+        }
+
+        #controls button {
+            height: 45px;
+            padding: 0 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        #controls button:hover {
+            background-color: #0056b3;
+        }
+
+        #controls button:active {
+            transform: scale(0.98);
+        }
+    </style>
+    {% include "chatbase.html" %}
+</head>
+<body>
+    {% include 'header.html' %}
+    <div id="container" style="margin-left: 20px;">
+        <h1>AIRA Geofence Map Application</h1>
+        <p>
+            Double-click the map to start drawing the boundaries, 
+            put a name, and Save the geofence.
+        </p>
+    </div>
+<div id="controls">
+    <input type="text" id="searchAddress" placeholder="Search by Address">
+    <input type="text" id="searchLat" placeholder="Latitude">
+    <input type="text" id="searchLon" placeholder="Longitude">
+    <button onclick="searchLocation()">Search</button>
+    <input type="text" id="geofenceName" placeholder="Geofence Name">
+    <input type="text" id="geofenceDesc" placeholder="Description">
+    <button onclick="saveGeofence()">Save Geofence</button>
+    <button onclick="checkPoint()">Check Point</button>
+</div>
+    <div id="map"></div>
+
+    <!-- Geofences Table -->
+    <table id="geofenceTable">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Area (SQM)</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Geofence rows will be dynamically added here -->
+        </tbody>
+    </table>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([14.5995, 120.9842], 13); // Default view (Manila)
+        let drawnPolygon = null;
+        let geofences = [];
+
+        // Base layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+        }).addTo(map);
+
+        // Load existing geofences from the server
+        fetch('/get_geofences')
+            .then(response => response.json())
+            .then(data => {
+                geofences = data.geofences;
+                displayGeofences(); // Display the geofences in the table
+                geofences.forEach(geofence => {
+                    let polygon = L.polygon(geofence.boundaries).addTo(map)
+                        .bindPopup(geofence.name)
+                        .bindTooltip(geofence.name, { permanent: true, direction: 'center' }); // Adding label
+
+                    // Store the polygon reference in the geofence object
+                    geofence.polygon = polygon;
+                });
+            });
+
+        // Add a polygon drawing tool
+        map.on('click', addVertex);
+        let vertices = [];
+
+        function addVertex(e) {
+            vertices.push([e.latlng.lat, e.latlng.lng]);
+            if (vertices.length > 1) {
+                if (drawnPolygon) map.removeLayer(drawnPolygon);
+                drawnPolygon = L.polygon(vertices).addTo(map);
+            }
+        }
+
+        function saveGeofence() {
+    const name = document.getElementById('geofenceName').value;
+    const description = document.getElementById('geofenceDesc').value;
+
+
+    if (!name || vertices.length < 3) {
+        alert("Please provide a name and complete the polygon.");
+        return;
+    }
+
+    // Calculate area using Turf.js
+    const polygonGeoJSON = {
+        type: "Polygon",
+        coordinates: [vertices.map(([lat, lon]) => [lon, lat])], // Convert to GeoJSON format
+    };
+    const areaSqMeters = turf.area(polygonGeoJSON);
+
+    fetch('/add_geofence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name, description: description, boundaries: vertices, area: areaSqMeters })
+    }).then(response => response.json())
+        .then(data => {
+            alert(data.success || data.error);
+            location.reload(); // Refresh the page to reload the geofences
+        });
+}
+
+function displayGeofences() {
+    const tableBody = document.querySelector('#geofenceTable tbody');
+    tableBody.innerHTML = ''; // Clear existing rows
+
+    geofences.forEach(geofence => {
+        const row = document.createElement('tr');
+        const nameCell = document.createElement('td');
+        const descriptionCell = document.createElement('td');
+        const areaCell = document.createElement('td');
+        const actionsCell = document.createElement('td');
+
+        nameCell.textContent = geofence.name;
+        descriptionCell.textContent = geofence.description || 'No Description'; // Show description
+        areaCell.textContent = `${(geofence.area || 0).toFixed(2)} m²`; // Display area
+
+        const editButton = document.createElement('button');
+        editButton.textContent = 'Edit';
+        editButton.classList.add('btn', 'edit-btn');
+        editButton.onclick = () => editGeofence(geofence.id);
+
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = 'Delete';
+        deleteButton.classList.add('btn', 'delete-btn');
+        deleteButton.onclick = () => deleteGeofence(geofence.id);
+
+        actionsCell.appendChild(editButton);
+        actionsCell.appendChild(deleteButton);
+
+        row.appendChild(nameCell);
+        row.appendChild(descriptionCell); // Add description cell
+        row.appendChild(areaCell);
+        row.appendChild(actionsCell);
+
+        tableBody.appendChild(row);
+
+          // Modify onclick to include the geofence name in the query string
+    nameCell.onclick = () => {
+        window.location.href = `/incidents_in_geofence/${geofence.id}?name=${encodeURIComponent(geofence.name)}`;
+    };
+    });
+}
+
+        // Zoom to the selected geofence when clicking its name
+        function zoomToGeofence(geofence) {
+            const bounds = geofence.polygon.getBounds();
+            map.fitBounds(bounds); // Zoom to the polygon's bounds
+        }
+
+        // Edit geofence function
+        function editGeofence(id) {
+            const geofence = geofences.find(g => g.id === id);
+            if (geofence) {
+                document.getElementById('geofenceName').value = geofence.name;
+                vertices = geofence.boundaries;
+                drawnPolygon && map.removeLayer(drawnPolygon);
+                drawnPolygon = L.polygon(vertices).addTo(map);
+            }
+        }
+
+        // Delete geofence function
+        function deleteGeofence(id) {
+            if (confirm('Are you sure you want to delete this geofence?')) {
+                fetch(`/delete_geofence/${id}`, {
+                    method: 'DELETE',
+                }).then(response => response.json())
+                  .then(data => {
+                      alert(data.success || data.error);
+                      location.reload(); // Refresh the page to reload the geofences
+                  });
+            }
+        }
+
+        // Function to search by address or latitude/longitude using Nominatim API
+        function searchLocation() {
+            const address = document.getElementById('searchAddress').value;
+            const lat = parseFloat(document.getElementById('searchLat').value);
+            const lon = parseFloat(document.getElementById('searchLon').value);
+
+            if (address) {
+                // Geocoding by address using Nominatim
+                const geocodingAPI = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;
+                fetch(geocodingAPI)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.length > 0) {
+                            const { lat, lon } = data[0];
+                            map.setView([lat, lon], 15); // Zoom into the geocoded location
+                            L.marker([lat, lon]).addTo(map)
+                                .bindPopup(`Address: ${data[0].display_name}`)
+                                .openPopup();
+                        } else {
+                            alert("Address not found.");
+                        }
+                    })
+                    .catch(() => alert("Error in geocoding address."));
+            } else if (!isNaN(lat) && !isNaN(lon)) {
+                // Search by latitude/longitude
+                map.setView([lat, lon], 15); // Zoom to the entered lat/lon
+            } else {
+                alert("Please provide a valid address or coordinates.");
+            }
+        }
+    </script>   <script>// Display latitude and longitude as the mouse moves over the map
+        const coordsDisplay = document.createElement('div');
+coordsDisplay.style.position = 'absolute';
+coordsDisplay.style.top = '1020px'; // Move to the top
+coordsDisplay.style.right = '10px'; // Align to the right
+coordsDisplay.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+coordsDisplay.style.padding = '10px';
+coordsDisplay.style.border = '1px solid #ccc';
+coordsDisplay.style.zIndex = '1000';
+coordsDisplay.innerText = 'Lat: 0, Lng: 0';
+document.body.appendChild(coordsDisplay);
+
+map.on('mousemove', function (e) {
+    const { lat, lng } = e.latlng;
+    coordsDisplay.innerText = `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`;
+});</script>
+ 
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <title>Survey Responses</title>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2, h3 {
+            color: #333;
+            font-weight: 700;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        form {
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        select, button {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: #fff;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f4f4f4;
+            font-weight: 500;
+            color: #555;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        p {
+            color: #555;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    {% include "chatbase.html" %}
+    {% include 'header.html' %}
+
+    <div class="container">
+        <h1>Survey Responses</h1>
+
+        <!-- Survey Selection Form -->
+        <form method="POST" action="/survey_responses">
+            <label for="survey">Select a Survey:</label>
+            <select name="survey_id" id="survey" required>
+                <option value="" disabled selected>-- Choose Survey --</option>
+                {% for survey in surveys %}
+                <option value="{{ survey.id }}" {% if selected_survey and survey.id == selected_survey.id %}selected{% endif %}>
+                    {{ survey.title }}
+                </option>
+                {% endfor %}
+            </select>
+            <button type="submit">View Responses</button>
+        </form>
+
+        {% if selected_survey %}
+        <h2>Survey: {{ selected_survey.title }}</h2>
+        <p>{{ selected_survey.description }}</p>
+
+        <!-- Table of Responses -->
+        {% for question in questions %}
+        <h3>Question: {{ question.text }}</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>User ID</th>
+                    <th>Response Text</th>
+                    <th>Language</th>
+                    <th>Timestamp</th>
+                    <th>Sentiment</th>
+                    <th>Action</th>
+                    <th>Location</th>
+                    <th>Additional Info</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for response in responses[question.id] %}
+                <tr>
+                    <td>{{ response.id }}</td>
+                    <td>{{ response.user_id }}</td>
+                    <td>{{ response.response_text }}</td>
+                    <td>{{ response.language }}</td>
+                    <td>{{ response.timestamp }}</td>
+                    <td>{{ response.sentiment }}</td>
+                    <td>{{ response.action }}</td>
+                    <td>{{ response.location }}</td>
+                    <td>
+                        <strong>Name:</strong> {{ response.name }} <br>
+                        <strong>Address:</strong> {{ response.address }} <br>
+                        <strong>Group:</strong> {{ response.grouping }} <br>
+                        <strong>Color Code:</strong> {{ response.colorcode }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endfor %}
+        {% else %}
+        <p>Please select a survey to view responses.</p>
+        {% endif %}
+    </div>
+</body>
+</html>

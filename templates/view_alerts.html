@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Alerts</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    {% include "chatbase.html" %}
+    {% include 'header.html' %}
+
+    <div class="container">
+        <h1>View All Alerts</h1>
+
+        <!-- Table to View Alerts -->
+        <table class="alert-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Urgency</th>
+                    <th>Location</th>
+                    <th>Category</th>
+                    <th>Method</th>
+                    <th>Contact Details</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for alert in alerts %}
+                <tr>
+                    <td>{{ alert.name }}</td>
+                    <td>{{ alert.urgency }}</td>
+                    <td>{{ alert.location }}</td>
+                    <td>{{ alert.category }}</td>
+                    <td>{{ alert.alert_method }}</td>
+                    <td>{{ alert.contact_details }}</td>
+                    <td>{{ 'Active' if alert.is_active else 'Inactive' }}</td>
+                    <td>
+                        <a href="{{ url_for('edit_alert', alert_id=alert.id) }}">Edit</a>
+                        <form action="{{ url_for('toggle_alert', alert_id=alert.id) }}" method="POST" style="display:inline;">
+                            <button type="submit">{{ 'Deactivate' if alert.is_active else 'Activate' }}</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

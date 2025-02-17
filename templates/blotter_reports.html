@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blotter Reports</title>
+    <!-- Include your existing CSS files here -->
+    <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>  {% include 'header.html' %}
+    <!-- Header -->
+    <header>
+        <h1>Incident Reports</h1>
+        <!-- Add any other header content you need -->
+    </header>
+
+    <main>
+        <h2>Blotter Reports</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Category</th>
+                    <th>Location</th>
+                    <th>Report Text</th>
+                    <th>Timestamp</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for incident in incidents %}
+                <tr>
+                    <td><a href="{{ url_for('incident_details', incident_id=incident.id) }}">{{ incident.id }}</a></td>
+                    <td>{{ incident.category }}</td>
+                    <td>{{ incident.location }}</td>
+                    <td>{{ incident.report_text }}</td>
+                    <td>{{ incident.timestamp }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Pagination -->
+        {% if pagination %}
+        <div class="pagination">
+            <a href="{{ url_for('blotter_reports', page=1) }}">&laquo; First</a>
+            <a href="{{ url_for('blotter_reports', page=pagination.page - 1) }}">Prev</a>
+            <span>Page {{ pagination.page }} of {{ pagination.pages }}</span>
+            <a href="{{ url_for('blotter_reports', page=pagination.page + 1) }}">Next</a>
+            <a href="{{ url_for('blotter_reports', page=pagination.pages) }}">Last &raquo;</a>
+        </div>
+        {% endif %}
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2024 AIRA LABS All Rights Reserved.</p>
+        <!-- Add any footer content you need -->
+    </footer>
+</body>
+</html>

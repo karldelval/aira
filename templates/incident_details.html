@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Details</title>
+    <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    
+    <style>
+        :root {
+            --primary-bg: #1a1a1a;
+            --secondary-bg: #2d2d2d;
+            --accent-color: #00ff88;
+            --urgent-color: #ff4444;
+            --warning-color: #ffbb33;
+            --text-color: #ffffff;
+            --border-radius: 8px;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--primary-bg);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+
+        /* Button Styles */
+        .btn {
+            background-color: var(--accent-color);
+            color: var(--primary-bg);
+            border: none;
+            padding: 10px 20px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin: 10px 0;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            background-color: #00cc6a;
+            transform: translateY(-2px);
+        }
+
+        /* Table Styles */
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 8px;
+            margin: 20px 0;
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: left;
+            background-color: var(--secondary-bg);
+            border: none;
+        }
+
+        th {
+            background-color: #3d3d3d;
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+
+        tr:hover td {
+            background-color: #353535;
+        }
+
+        /* Form Styles */
+        form {
+            background-color: var(--secondary-bg);
+            padding: 20px;
+            border-radius: var(--border-radius);
+            margin: 20px 0;
+        }
+
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            color: var(--accent-color);
+        }
+
+        select, textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background-color: #333;
+            color: var(--text-color);
+        }
+
+        /* Map Container */
+        #incident-map {
+            height: 500px;
+            border-radius: var(--border-radius);
+            margin: 20px 0;
+            border: 2px solid var(--accent-color);
+        }
+
+        /* Modal Styles */
+        .modal {
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+
+        .modal-content {
+            background-color: var(--secondary-bg);
+            border: 2px solid var(--accent-color);
+            border-radius: var(--border-radius);
+            color: var(--text-color);
+        }
+
+        .modal-header {
+            border-bottom: 1px solid var(--accent-color);
+            padding: 15px;
+        }
+
+        .modal-title {
+            color: var(--accent-color);
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        /* Search Input */
+        #userSearch {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            background-color: #333;
+            border: 1px solid #444;
+            border-radius: 4px;
+            color: var(--text-color);
+        }
+
+        /* User List */
+        #userList {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .form-check {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+
+        .form-check:hover {
+            background-color: #353535;
+        }
+
+        /* Headers */
+        h2 {
+            color: var(--accent-color);
+            margin: 30px 0 20px;
+            font-size: 1.5rem;
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 10px;
+        }
+
+        /* Media Container */
+        .media-container {
+            background-color: var(--secondary-bg);
+            padding: 20px;
+            border-radius: var(--border-radius);
+            margin: 20px 0;
+        }
+
+        .media-container img, 
+        .media-container video {
+            max-width: 100%;
+            border-radius: 4px;
+            display: block;
+            margin: 0 auto;
+        }
+         a {
+    color: var(--accent-color);
+    text-decoration: none;
+    padding: 5px 10px;
+    border-radius: var(--border-radius);
+    transition: all 0.3s ease;
+}
+
+.similar-incidents a:hover {
+    background-color: var(--secondary-bg);
+    color: var(--accent-color);
+}
+        /* Response List */
+        .responses-table th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        /* Similar Incidents */
+        .similar-incidents {
+            list-style: none;
+            padding: 0;
+        }
+
+        .similar-incidents li {
+            background-color: var(--secondary-bg);
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: var(--border-radius);
+            transition: background-color 0.3s ease;
+        }
+
+        .similar-incidents li:hover {
+            background-color: #353535;
+        }
+
+        .similar-incidents a {
+            color: var(--text-color);
+            text-decoration: none;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            table, thead, tbody, th, td, tr {
+                display: block;
+            }
+
+            th {
+                display: none;
+            }
+
+            td {
+                position: relative;
+                padding-left: 50%;
+                text-align: right;
+            }
+
+            td:before {
+                content: attr(data-label);
+                position: absolute;
+                left: 15px;
+                top: 50%;
+                transform: translateY(-50%);
+                font-weight: bold;
+                color: var(--accent-color);
+            }
+
+            #incident-map {
+                height: 300px;
+            }
+        }
+    </style>
+</head>  {% include "chatbase.html" %}  {% include 'header2.html' %}
+<body>
+    <div class="container">
+        <a href="{{ url_for('analyze_incident', incident_id=incident.id) }}">
+            <button class="btn">TRAIN THE AI</button>
+        </a>
+
+        <!-- Notify Users Button -->
+<button class="btn" data-bs-toggle="modal" data-bs-target="#notifyUsersModal">NOTIFY USERS</button>
+
+<!-- Modal for Selecting Users -->
+<!-- Modal for Selecting Users -->
+<div class="modal fade" id="notifyUsersModal" tabindex="-1" aria-labelledby="notifyUsersModalLabel" aria-hidden="true" style="display: none;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="notifyUsersModalLabel">Select Users to Notify</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Search Bar -->
+                <input type="text" id="userSearch" class="form-control mb-3" placeholder="Search users..." onkeyup="searchUsers()">
+                
+                <!-- User Checkboxes -->
+                <div id="userList">
+                    <!-- User list will be populated here dynamically -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn" onclick="notifySelectedUsers()">Notify Users</button>
+            </div>
+        </div>
+    </div>
+</div>
+<table>
+    <tr>
+        <th>ID</th>
+        <td data-label="ID">{{ incident.id }}</td>
+    </tr>
+    <tr>
+        <th>Report Text</th>
+        <td data-label="Report Text"><h2>{{ incident.report_text }}</h2></td>
+    </tr>
+    <tr>
+        <th>Timestamp</th>
+        <td data-label="Timestamp">{{ incident.timestamp }}</td>
+    </tr>
+    <tr>
+        <th>Category</th>
+        <td data-label="Category">{{ incident.category }}</td>
+    </tr>
+    <tr>
+        <th>Latitude</th>
+        <td data-label="Latitude">{{ incident.latitude if incident.latitude else 'Not available' }}</td>
+    </tr>
+    <tr>
+        <th>Longitude</th>
+        <td data-label="Longitude">{{ incident.longitude if incident.longitude else 'Not available' }}</td>
+    </tr>
+    <tr>
+        <th>Nearby Markers</th>
+        <td data-label="Nearby Markers">
+            {% if incident.latitude and incident.longitude %}
+                {% if nearby_markers %}
+                    {% for marker in nearby_markers %}
+                        <img src="{{ url_for('static', filename='icons/' + marker.icon) }}" alt="{{ marker.label }}" style="width: 20px; height: 20px; vertical-align: middle; margin-right: 5px;">
+                        {{ marker.label }} ({{ marker.distance }} km){% if not loop.last %} <br> {% endif %}
+                    {% endfor %}
+                {% else %}
+                    No nearby markers found.
+                {% endif %}
+            {% else %}
+                Location coordinates not available
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <th>Map Marker</th>
+        <td data-label="Map Marker">
+            <!-- Leaflet Map Container -->
+            <div id="incident-map" style="flex: 1; height: 500px;"></div>
+        </td>
+    </tr>
+    <tr>
+        <th>Tokens</th>
+        <td data-label="Tokens">{{ incident.tokens }}</td>
+    </tr>
+    <tr>
+        <th>Notes</th>
+        <td data-label="Notes">{{ incident.notes }}</td>
+    </tr>
+    <tr>
+        <th>Authorities Assigned</th>
+        <td data-label="Authorities Assigned">{{ incident.assigned_authorities }}</td>
+    </tr>
+    <tr>
+        <th>AIRA Analysis</th>
+        <td data-label="AIRA Analysis">{{ incident.openai_analysis }}</td>
+    </tr>
+    <tr>
+        <th>AI-Assisted Action Points</th>
+        <td data-label="AI-Assisted Action Points">
+            {% if action_points %}
+                <ul>
+                    {% for action_point in action_points %}
+                        <li>{{ action_point }}</li>
+                    {% endfor %}
+                </ul>
+                <br><br> *AI trained or generated action points sometimes may be inaccurate. Please act accordingly.
+                <br>You can use <a href="{{ url_for('generate_action_points', incident_id=incident.id) }}">Action Point Generator</a> for more AI-assisted relevant action points or <a href="{{ url_for('analyze_incident', incident_id=incident.id) }}">train the AI</a> with action points for this particular incident.
+            {% else %}
+                <p>No relevant action points found. <br>You can use <a href="{{ url_for('generate_action_points', incident_id=incident.id) }}">Action Point Generator</a> for more relevant action points or <a href="{{ url_for('analyze_incident', incident_id=incident.id) }}">train the AI</a> with action points for this particular incident.</p>
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <th>Location</th>
+        <td data-label="Location">{{ incident.location }}</td>
+    </tr>
+    <tr>
+        <th>Language</th>
+        <td data-label="Language">{{ incident.language }}</td>
+    </tr>
+    <tr>
+        <th>Reported by:</th>
+        <td data-label="Reported by">{{ user_name }}</td>
+    </tr>
+    <tr>
+        <th>Media</th>
+        <td data-label="Media" class="media-container">
+            {% if incident.media_path %}
+                {% if incident.media_path.endswith('.mp4') or incident.media_path.endswith('.avi') or incident.media_path.endswith('.webm') %}
+                    <video width="400" controls>
+                        <source src="../{{ incident.media_path }}" type="video/{{ incident.media_path.split('.')[-1] }}">
+                        Your browser does not support the video tag.
+                    </video>
+                {% elif incident.media_path.endswith('.jpg') or incident.media_path.endswith('.jpeg') or incident.media_path.endswith('.png') or incident.media_path.endswith('.gif') %}
+                    <img 
+                        src="../{{ incident.media_path }}" 
+                        alt="Media" 
+                        style="max-width: 1200px; max-height: 700px; display: block;"
+                    >
+                {% elif incident.media_path.endswith('.mp3') or incident.media_path.endswith('.wav') %}
+                <audio controls style="width: 300px;">
+                    <source src="{{ url_for('get_recording', recording_id=incident.media_path.split('/')[-1].replace('.mp3', '')) }}" type="audio/mpeg">
+                    Your browser does not support the audio element.
+                </audio>
+                    <br>
+                    <small class="text-muted">Audio Recording</small>
+                {% else %}
+                    Unsupported media type
+                {% endif %}
+            {% else %}
+                No media
+            {% endif %}
+        </td>
+    </tr>
+</table>
+      
+        <h2>Add a Response</h2>
+        <form action="{{ url_for('add_response', incident_id=incident.id) }}" method="POST">
+            <label for="tag">TAG:</label>
+            <select id="tag" name="tag" required>
+                <option value="URGENT">URGENT</option>
+                <option value="FALSE REPORT">FALSE REPORT</option>
+                <option value="NON-URGENT">NON-URGENT</option>
+                <option value="SCAM">SCAM</option>
+                <option value="DISREGARD">DISREGARD</option>
+                <option value="RESOLVED">RESOLVED</option>
+                <option value="EMERGENCY">EMERGENCY</option>
+                <option value="NO TAG">NO TAG</option>
+            </select><br>
+        
+            <label for="response">Your Response:</label><br>
+            <textarea id="response" name="response" rows="4" cols="50" required></textarea><br>
+            <button  class="btn" type="submit">Add Response</button>
+        </form>
+
+        <h2>Incident Responses</h2>
+        {% if responses %}
+        <table>
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Response</th>
+                    <th>Tag</th>
+                    <th>Timestamp</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for response in responses %}
+                <tr>
+                    <td>{{ response.user_id }}</td>
+                    <td>{{ response.response }}</td>
+                    <td>{{ response.tag }}</td>
+                    <td>{{ response.timestamp }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No responses yet.</p>
+        {% endif %}
+
+        <h2>Similar Incidents</h2>
+        {% if similar_incidents %}
+        <ul>
+            {% for similar in similar_incidents %}
+            <li>
+                <a href="{{ url_for('incident_details', incident_id=similar.id) }}">
+                    Incident ID: {{ similar.id }} - Category: {{ similar.category }} - Timestamp: {{ similar.timestamp }}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>No similar incidents found.</p>
+        {% endif %}
+    </div>
+
+    <script>
+        // Initialize the Leaflet map with default center if coordinates are not available
+        var defaultLat = 14.5995; // Default latitude (Philippines)
+        var defaultLng = 120.9842; // Default longitude (Philippines)
+        
+        var latitude = {{ incident.latitude if incident.latitude else 'null' }};
+        var longitude = {{ incident.longitude if incident.longitude else 'null' }};
+        
+        // Use incident coordinates if available, otherwise use defaults
+        var centerLat = latitude || defaultLat;
+        var centerLng = longitude || defaultLng;
+        
+        var map = L.map('incident-map').setView([centerLat, centerLng], 13);
+        
+        // Add the OpenStreetMap tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        
+        // Only add the incident marker if coordinates are available
+        if (latitude && longitude) {
+            L.marker([latitude, longitude])
+                .addTo(map)
+                .bindPopup('Incident Location')
+                .openPopup();
+        }
+        
+        // Add nearby markers if they exist
+        var nearbyMarkers = {{ nearby_markers | tojson }};
+        
+        if (nearbyMarkers && nearbyMarkers.length > 0) {
+            nearbyMarkers.forEach(function(marker) {
+                if (marker.latitude && marker.longitude) {
+                    var customIcon = L.icon({
+                        iconUrl: '{{ url_for("static", filename="icons/") }}' + marker.icon,
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 32],
+                        popupAnchor: [0, -32]
+                    });
+            
+                    L.marker([marker.latitude, marker.longitude], { icon: customIcon })
+                        .addTo(map)
+                        .bindPopup("Marker: " + marker.label);
+                }
+            });
+        }
+    </script>
+   
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const clickableImages = document.querySelectorAll('.clickable-image');
+        const modalImage = document.getElementById('zoomable-image');
+        let scale = 1;
+
+        // Open modal and set the image
+        clickableImages.forEach(img => {
+            img.addEventListener('click', () => {
+                modalImage.src = img.src;
+                scale = 1; // Reset zoom scale
+                modalImage.style.transform = `scale(${scale})`;
+            });
+        });
+
+        // Zoom and pan functionality
+        modalImage.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            scale += e.deltaY * -0.001; // Adjust zoom sensitivity
+            scale = Math.min(Math.max(.5, scale), 3); // Limit zoom level
+            modalImage.style.transform = `scale(${scale})`;
+        });
+
+        let isDragging = false;
+        let startX, startY;
+        let currentX = 0, currentY = 0;
+
+        modalImage.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startX = e.clientX - currentX;
+            startY = e.clientY - currentY;
+            modalImage.style.cursor = 'grabbing';
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+            modalImage.style.cursor = 'default';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            currentX = e.clientX - startX;
+            currentY = e.clientY - startY;
+            modalImage.style.transform = `scale(${scale}) translate(${currentX}px, ${currentY}px)`;
+        });
+    </script>
+<script>
+    let selectedUserIds = [];
+
+    function fetchUsers(query = '') {
+    fetch(`/fetch_users?query=${query}`)
+        .then(response => response.json())
+        .then(data => {
+            const userList = document.getElementById('userList');
+            userList.innerHTML = ''; // Clear the current list
+
+            if (data.users && data.users.length > 0) {
+                data.users.forEach(user => {
+                    const userItem = document.createElement('div');
+                    userItem.classList.add('form-check');
+                    userItem.innerHTML = `
+                        <input class="form-check-input" type="checkbox" value="${user.id}" id="user-${user.id}">
+                        <label class="form-check-label" for="user-${user.id}">
+                            ${user.name} - ${user.email}
+                        </label>
+                    `;
+                    userList.appendChild(userItem);
+                });
+            } else {
+                userList.innerHTML = '<p>No users found.</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching users:', error);
+            alert('An error occurred while fetching users.');
+        });
+}
+
+// Search users as you type
+function searchUsers() {
+    const searchQuery = document.getElementById('userSearch').value;
+    fetchUsers(searchQuery);
+}
+
+// Notify selected users
+function notifySelectedUsers() {
+    const selectedCheckboxes = document.querySelectorAll('.form-check-input:checked');
+    selectedUserIds = Array.from(selectedCheckboxes).map(checkbox => checkbox.value);
+
+    if (selectedUserIds.length === 0) {
+        alert('Please select at least one user.');
+        return;
+    }
+
+    // Send a POST request to notify users
+    fetch('/notify_users', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            user_ids: selectedUserIds,
+            incident_id: '{{ incident.id }}'  // Use the incident ID here
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(data.message);  // Show success message
+        $('#notifyUsersModal').modal('hide');  // Close the modal
+    })
+    .catch(error => {
+       // console.error('Error notifying users:', error);
+       // alert('An error occurred while notifying users.');
+    });
+}
+
+// Initial fetch for users when the page loads
+document.addEventListener('DOMContentLoaded', () => fetchUsers());
+</script>
+    
+</body>
+</html>

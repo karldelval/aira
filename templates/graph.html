@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentiment and Similarity Heatmap</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .response-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .response-table th, .response-table td {
+            padding: 10px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        .response-table th {
+            background-color: #f4f4f4;
+        }
+        .filter-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+        .filter-container label {
+            margin-right: 10px;
+        }
+        .filter-container select, .filter-container button {
+            padding: 5px 10px;
+        }
+        .chart-container {
+            width: 100%;
+            max-width: 800px; /* Bigger chart */
+            margin: 20px auto; /* Added spacing */
+        }
+        .generate-btn-container {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>{% include "chatbase.html" %}
+    {% include 'header.html' %}
+
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h1>AIRA SENTIMENT AND SIMILARITY TABLE</h1>
+        <div class="generate-btn-container">
+            <button id="generateGraphBtn" style="padding: 10px 20px; font-size: 16px;">Generate Graph</button>
+        </div>
+    </div>
+
+    <!-- Filter Form -->
+    <form method="POST" action="/graph">
+        <label for="question_id">Select Question:</label>
+        <select name="question_id" id="question_id">
+          {% for question in questions %}
+            <option value="{{ question.id }}" {% if question.id == question_id %}selected{% endif %}>{{ question.text }}</option>
+          {% endfor %}
+        </select>
+        <br>
+        <label for="mode">Mode:</label>
+        <select name="mode" id="mode">
+          <option value="sentiment" {% if mode == 'sentiment' %}selected{% endif %}>Sentiment</option>
+          <option value="similarity" {% if mode == 'similarity' %}selected{% endif %}>Similarity</option>
+        </select>
+        <br>
+        <button type="submit">Submit</button>
+    </form>
+
+    <!-- Graph Section -->
+    <div class="chart-container">
+        <canvas id="responseChart"></canvas>
+    </div>
+
+    <!-- Responses Table -->
+    <div>
+        <h3>Responses</h3>
+        <table class="response-table">
+            <thead>
+                <tr>
+                    <th style="color: black;">Response</th>
+                    <th style="color: black;">Location</th>
+                    <th style="color: black;">Latitude</th>
+                    <th style="color: black;">Longitude</th>
+                    <th style="color: black;">{{ "Sentiment" if mode == "sentiment" else "Similarity Group" }}</th>
+                    <th style="color: black;">Color Code</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for response in filtered_responses %}
+                    <tr>
+                        <td>{{ response.response_text }}</td>
+                        <td>{{ response.location }}</td>
+                        <td>{{ response.latitude }}</td>
+                        <td>{{ response.longitude }}</td>
+                        <td>
+                            {% if mode == "sentiment" %}
+                                {{ response.sentiment.split(' ')[0] | capitalize }}
+                            {% else %}
+                                {{ response.filter_value }}
+                            {% endif %}
+                        </td>
+                        <td style="background-color: {{ color_map[mode][response.filter_value] }};">
+                            {{ color_map[mode][response.filter_value] }}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+      // Function to generate the graph
+document.getElementById('generateGraphBtn').addEventListener('click', function() {
+    const tableRows = document.querySelectorAll('.response-table tbody tr');
+    const sentimentCounts = { 'Positive': 0, 'Negative': 0, 'Neutral': 0 };
+    const similarityCounts = {};
+    const colorMap = {}; // Store colors dynamically for each group
+
+    tableRows.forEach(row => {
+        const sentimentCell = row.cells[4];
+        const colorCodeCell = row.cells[5]; // Color Code column
+        const sentimentValue = sentimentCell.textContent.trim();
+        const colorCode = colorCodeCell.style.backgroundColor;
+
+        if (document.getElementById('mode').value === 'sentiment') {
+            // Sentiment Mode: Count Positive, Negative, Neutral
+            if (sentimentValue === 'Positive') sentimentCounts['Positive']++;
+            else if (sentimentValue === 'Negative') sentimentCounts['Negative']++;
+            else if (sentimentValue === 'Neutral') sentimentCounts['Neutral']++;
+        } else {
+            // Similarity Mode: Count groups dynamically and save their colors
+            if (!similarityCounts[sentimentValue]) {
+                similarityCounts[sentimentValue] = 0;
+                colorMap[sentimentValue] = colorCode; // Map color to the group
+            }
+            similarityCounts[sentimentValue]++;
+        }
+    });
+
+    // Data preparation for Sentiment Mode
+    const sentimentData = {
+        labels: ['Positive', 'Negative', 'Neutral'],
+        data: [
+            sentimentCounts['Positive'],
+            sentimentCounts['Negative'],
+            sentimentCounts['Neutral']
+        ],
+        colors: ['#4CAF50', '#FF6347', '#FFD700'] // Default sentiment colors
+    };
+
+    // Data preparation for Similarity Mode
+    const similarityData = {
+        labels: Object.keys(similarityCounts),
+        data: Object.values(similarityCounts),
+        colors: Object.keys(similarityCounts).map(group => colorMap[group]) // Use matching colors
+    };
+
+    // Get chart mode
+    const mode = document.getElementById('mode').value;
+    const chartData = (mode === 'sentiment') ? sentimentData : similarityData;
+
+    // Render the chart
+    const ctx = document.getElementById('responseChart').getContext('2d');
+    if (window.responseChart && typeof window.responseChart.destroy === 'function') {
+    window.responseChart.destroy(); // Safely destroy the old chart instance
+}
+
+    window.responseChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: chartData.labels,
+            datasets: [{
+                label: (mode === 'sentiment' ? 'Sentiment' : 'Similarity Group') + ' Distribution',
+                data: chartData.data,
+                backgroundColor: chartData.colors,
+                borderColor: chartData.colors.map(color => darkenColor(color, 20)), // Slightly darken for borders
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+});
+
+// Function to darken a color for chart borders
+function darkenColor(color, percent) {
+    if (!color || typeof color !== 'string') {
+        return '#000000'; // Return black as fallback for invalid colors
+    }
+    const rgb = color.match(/\d+/g);
+    if (!rgb) return color; // Return original color if it cannot be parsed
+
+    return `rgb(
+        ${Math.max(0, Math.min(255, rgb[0] * (1 - percent / 100)))},
+        ${Math.max(0, Math.min(255, rgb[1] * (1 - percent / 100)))},
+        ${Math.max(0, Math.min(255, rgb[2] * (1 - percent / 100)))}
+    )`;
+}
+    </script>
+</body>
+</html>

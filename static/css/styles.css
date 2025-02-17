@@ -1,0 +1,518 @@
+
+/* Global Styles */
+body {
+    font-family: 'Roboto';font-size: 20px;
+    margin: 0;
+    padding: 0;
+    background-color: #ffffff;
+    color: #212121;
+    
+}
+
+header {
+    background: #3e3054;
+    padding: 10px 20px;
+    color: white;
+    font-family: 'Roboto';font-size: 20px;
+   
+    align-content: center;
+    text-align: center;
+    justify-content: center;
+    display: flexbox;
+}
+
+header nav ul {
+    font-family: 'Roboto';font-size: 20px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: space-between;
+}
+
+/* Style the form container */
+.advanced-search-form {
+    margin: 20px;
+    padding: 20px;
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+    max-width: 900px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    font-family: 'Roboto';font-size: 17px;
+}
+
+/* Style the form fieldset */
+.advanced-search-form fieldset {
+    border: none;
+    padding: 0;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+/* Style the form legend */
+.advanced-search-form legend {
+    font-size: 1.5rem;
+    margin-bottom: 15px;
+    font-weight: bold;
+    color: #333;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+/* Style the labels */
+.advanced-search-form label {
+    display: block;
+    margin: 5px 0;
+    font-size: 1rem;
+    color: #333;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+/* Style the form rows for grid layout */
+.advanced-search-form .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+/* Make sure to handle small screen size by stacking inputs vertically */
+@media (max-width: 768px) {
+    .advanced-search-form .form-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Style the individual form fields (input, select) */
+.advanced-search-form .form-field input[type="text"],
+.advanced-search-form .form-field input[type="date"],
+.advanced-search-form .form-field select {
+    width: 100%;
+    padding: 10px;
+    font-size: 1rem;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+/* Style the placeholder text */
+.advanced-search-form input::placeholder {
+    color: #aaa;
+}
+
+/* Style the submit button */
+.submit-btn {
+    background-color: #007bff;
+    color: white;
+    padding: 12px 20px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    width: 100%;
+    margin-top: 15px;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+.submit-btn:hover {
+    background-color: #0056b3;
+}
+
+.submit-btn:active {
+    background-color: #003d7a;
+}
+
+a {
+    text-decoration: none; /* Removes the underline */
+    color: #474268; /* Default link color (blue) */
+    font-weight: bold;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+a:hover {
+    color: #605bac; /* Darker blue on hover */
+    text-decoration: underline; /* Adds underline on hover */
+}
+
+a:visited {
+    color: #6c757d; /* Gray for visited links */
+}
+
+a:active {
+    color: #1b1717; /* Red when active (clicked) */
+}
+
+header nav ul li {
+    margin: 0 20px;
+    color: white;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+header nav ul li a {
+   
+    text-decoration: none;
+    color: white;
+    font-weight: 800;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+header nav ul li a:hover {
+    font-family: 'Roboto';font-size: 17px;
+    text-decoration: underline;
+    color: white;
+}
+
+.container {
+    padding: 40px;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+h1, h2 {
+    color: #3e3054;
+    font-family: 'Roboto';font-size: 30px;
+}
+
+/* Button Styles */
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #3e3054;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    font-size: 19px;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+.btn:hover {
+    background-color: #3e3054;
+    color: white;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+/* Form Styles */
+form {
+    background: white;
+    padding: 15px;
+    margin: 15px 0;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    font-family: 'Roboto';font-size: 17px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+.input-field {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-family: 'Roboto';font-size: 17px;
+    font-size: 18px;
+}
+
+/* Table Styles */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+table th, table td {
+    padding: 10px;
+    text-align: left;
+    border: 1px solid #ddd;
+    font-family: 'Roboto';font-size: 17px;
+    
+}
+
+table th {
+    background-color: #3f2c3f;
+    color: white;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+table tr:nth-child(even) {
+    background-color: #f9f9f9;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    justify-content: center;
+    margin: 20px 0;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+.page-link {
+    text-decoration: none;
+    color: #4caf50;
+    padding: 8px 16px;
+    margin: 0 5px;
+    border: 1px solid #3e3054;
+    border-radius: 5px;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+.page-link:hover {
+    background-color: #3e3054;
+    color: white;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    header nav ul {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .small-map {
+        margin-top: 20px;
+    }
+
+   /* Table Styles */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 16px;
+    text-align: left;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    background-color: white;
+    border-radius: 5px;
+    overflow: hidden;
+    font-family: 'Roboto';font-size: 17px;
+
+}
+
+table th, table td {
+    padding: 12px 15px;
+    border: 1px solid #ddd;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+table th {
+    background-color: #4b3c63;
+    color: rgb(20, 19, 19);
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+table tr:nth-child(even) {
+    background-color: #f9f9f9;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+table tr:hover {
+    background-color: #f1f1f1;
+    transition: background-color 0.2s ease-in-out;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+table td a {
+    color: #4caf50;
+    text-decoration: none;
+    font-weight: bold;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+table td a:hover {
+    text-decoration: underline;
+}
+
+/* Media Handling */
+table td img,
+table td video {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: 5px;
+    margin-top: 5px;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+/* Responsive Table */
+@media (max-width: 768px) {
+    table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+        font-size: 16px;
+    }
+
+    table th, table td {
+        font-size: 14px;
+        padding: 10px;
+        color:#151415;
+        font-family: 'Roboto';font-size: 17px;
+    }
+
+    /* Input Field and Dropdown Styles */
+.input-field, select {
+    width: 100%;
+    padding: 12px 15px;
+    margin-bottom: 15px;
+    font-size: 18px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+    color: #333;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: border-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+.input-field:focus, select:focus {
+    border-color: #4caf50;
+    outline: none;
+    box-shadow: 0 0 8px rgba(76, 175, 80, 0.4);
+    background-color: #fff;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+.input-field::placeholder {
+    color: #aaa;
+    font-style: italic;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+select {
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 5'%3E%3Cpath fill='%23333' d='M2 0L0 2h4zM2 5L0 3h4z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 10px 10px;
+    cursor: pointer;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+select:hover {
+    border-color: #3e3054;
+}
+
+/* Disabled Inputs */
+.input-field:disabled, select:disabled {
+    background-color: #e9e9e9;
+    color: #777;
+    cursor: not-allowed;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    .input-field, select {
+        font-family: 'Roboto';font-size: 17px;
+        padding: 10px;
+    }
+}
+
+.incident-form-section {
+    max-width: 600px;
+    margin: 30px auto;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    font-family: 'Roboto';font-size: 17px;
+}
+
+.incident-form h2 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 1.8em;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    font-size: 1.1em;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 8px;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+input[type="text"],
+textarea {
+    width: 100%;
+    padding: 12px;
+    font-size: 1em;
+    border: 2px solid #007BFF;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+    box-sizing: border-box;
+    transition: border-color 0.3s ease;
+}
+
+input[type="text"]:focus,
+textarea:focus {
+    border-color: #0056b3;
+    background-color: #e9f1ff;
+    outline: none;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+textarea {
+    resize: none;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+.submit-button {
+    width: 100%;
+    padding: 15px;
+    font-size: 1.2em;
+    color: #fff;
+    background-color: #007BFF;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    font-family: 'Roboto';font-size: 17px;
+}
+
+.submit-button:hover {
+    background-color: #0056b3;
+}
+
+@media (max-width: 768px) {
+    .incident-form-section {
+        padding: 15px;
+    }
+
+    .incident-form h2 {
+        font-size: 1.5em;
+    }
+
+    input[type="text"],
+    textarea {
+        font-size: 0.9em;
+    }
+
+    .submit-button {
+        font-size: 1em;
+    }
+}
+}
+}

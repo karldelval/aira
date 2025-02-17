@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html><link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+<script src="{{ url_for('static', filename='js/scripts.js') }}" defer></script>
+<head>
+    <title>Incident Analysis</title>
+</head>
+<body> <header>
+
+     
+    <nav>
+        <ul>
+            <li><a href="/dashboard">Home</a></li>
+            <li><a href="/dispatch">Dispatch</a></li>
+            <li><a href="/dashboard">Dashboard</a></li>
+            <li><a href="/reports">Reports</a></li>
+            <li><a href="/ai">Prediction</a></li>
+            <li><a href="/persons_of_interest">POI</a></li>
+            <li><a href="/map">Map View</a></li>
+
+        </ul>
+    </nav>
+</header>
+    <h1>Analyze Incidents</h1>
+    <form method="POST">
+        <label for="start_date">Start Date:</label>
+        <input type="date" id="start_date" name="start_date" required><br>
+
+        <label for="end_date">End Date:</label>
+        <input type="date" id="end_date" name="end_date" required><br>
+
+        <label for="location">Location:</label>
+        <input type="text" id="location" name="location" required><br>
+
+        <button type="submit">Analyze</button>
+    </form>
+</body>
+</html>

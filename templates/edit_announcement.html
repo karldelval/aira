@@ -1,0 +1,57 @@
+
+<link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+{% include 'header.html' %}
+<style>   .form-container {
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+.form-container h2 {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #333;
+}
+.form-container input, .form-container textarea {
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 1rem;
+}
+.form-container input[type="number"] {
+    width: calc(50% - 10px);
+    display: inline-block;
+}
+.form-container button {
+    width: 100%;
+    padding: 12px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+.form-container button:hover {
+    background-color: #0056b3;
+}
+.form-container .form-group {
+    margin-bottom: 15px;
+}
+</style>
+<div class="form-container"></div>
+<form method="POST">
+    <input type="text" name="title" value="{{ announcement.title }}" required><br>
+    <textarea name="content" required>{{ announcement.content }}</textarea><br>
+    GPS Latitude Min: <input type="number" step="0.0001" name="gps_lat_min" value="{{ announcement.gps_lat_min }}"><br>
+    GPS Latitude Max: <input type="number" step="0.0001" name="gps_lat_max" value="{{ announcement.gps_lat_max }}"><br>
+    GPS Longitude Min: <input type="number" step="0.0001" name="gps_long_min" value="{{ announcement.gps_long_min }}"><br>
+    GPS Longitude Max: <input type="number" step="0.0001" name="gps_long_max" value="{{ announcement.gps_long_max }}"><br>
+    Viewers: <input type="text" name="viewers" value="{{ announcement.viewers }}"><br>
+    <button type="submit">Update Announcement</button>
+</form>
+</div>

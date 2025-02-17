@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIRA QR Code Scanner</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+
+        .campaign-selector {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .campaign-selector select {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .notes-field {
+            width: 100%;
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-height: 60px;
+            resize: vertical;
+        }
+
+        #video-container {
+            margin: 20px 0;
+            position: relative;
+            display: none;
+        }
+
+        #qr-video {
+            border: 2px solid #333;
+            border-radius: 8px;
+        }
+
+        #qr-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .result-container {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-width: 600px;
+            width: 100%;
+            display: none;
+        }
+
+        .citizen-info .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .citizen-info {
+            margin: 10px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .location-info {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #e8f5e9;
+            border-radius: 4px;
+            border: 1px solid #c8e6c9;
+        }
+        
+        .location-info p {
+            margin: 5px 0;
+            color: #2e7d32;
+        }
+        
+        .location-pending {
+            background-color: #fff3e0;
+            border-color: #ffe0b2;
+        }
+        
+        .location-pending p {
+            color: #ef6c00;
+        }
+        
+        .location-error {
+            background-color: #ffebee;
+            border-color: #ffcdd2;
+        }
+        
+        .location-error p {
+            color: #c62828;
+        }
+
+        .citizen-info h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+
+        .citizen-info p {
+            margin: 5px 0;
+            color: #2c3e50;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px;
+            transition: background-color 0.3s;
+        }
+
+        button.confirm {
+            background-color: #28a745;
+        }
+
+        button.confirm:hover {
+            background-color: #218838;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        #status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .scan-history {
+    margin-top: 20px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    padding: 10px;
+}
+
+.scan-history-item {
+    border-bottom: 1px solid #e0e0e0;
+    padding: 10px 0;
+}
+
+.scan-history-item:last-child {
+    border-bottom: none;
+}
+
+.scan-history-item p {
+    margin: 5px 0;
+    color: #555;
+}
+
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <h1>AIRA QR</h1>
+    
+    <div class="campaign-selector">
+        <h3>Select Campaign</h3>
+        <select id="campaignSelect">
+            <option value="">Select a campaign...</option>
+            <!-- Campaigns will be loaded here -->
+        </select>
+    </div>
+
+    <div id="controls">
+        <button id="startButton" disabled>Scan QR</button>
+        <button id="stopButton" disabled>Stop Camera</button>
+    </div>
+    
+    <div id="video-container">
+        <video id="qr-video" width="640" height="480" playsinline></video>
+        <canvas id="qr-canvas"></canvas>
+    </div>
+
+    <div id="result-container" class="result-container">
+        <h2>Scan Result</h2>
+        <div id="citizen-info" class="citizen-info">
+            <!-- Citizen info will be populated here -->
+        </div>
+        <textarea id="scanNotes" class="notes-field" placeholder="Enter notes about this scan..."></textarea>
+        <button id="confirmButton" class="confirm">Confirm Update</button>
+        <button id="rescanButton">Scan Again</button>
+    </div>
+    
+    <div id="status"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const videoElement = document.getElementById('qr-video');
+            const videoContainer = document.getElementById('video-container');
+            const canvas = document.getElementById('qr-canvas');
+            const startButton = document.getElementById('startButton');
+            const stopButton = document.getElementById('stopButton');
+            const statusDiv = document.getElementById('status');
+            const resultContainer = document.getElementById('result-container');
+            const campaignSelect = document.getElementById('campaignSelect');
+            const scanNotes = document.getElementById('scanNotes');
+            
+            let videoStream = null;
+            let scanning = false;
+            let currentPosition = null;
+
+            canvas.width = 640;
+            canvas.height = 480;
+            const ctx = canvas.getContext('2d');
+
+            // Load campaigns when page loads
+            async function loadCampaigns() {
+                try {
+                    const response = await fetch('/get_campaigns');
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        campaignSelect.innerHTML = '<option value="">Select a campaign...</option>';
+                        data.campaigns.forEach(campaign => {
+                            campaignSelect.innerHTML += `
+                                <option value="${campaign.id}">${campaign.name}</option>
+                            `;
+                        });
+                    } else {
+                        showStatus('Error loading campaigns: ' + data.error, 'error');
+                    }
+                } catch (error) {
+                    showStatus('Error loading campaigns: ' + error.message, 'error');
+                }
+            }
+
+            // Enable/disable scan button based on campaign selection
+            campaignSelect.addEventListener('change', function() {
+                startButton.disabled = !this.value;
+            });
+
+            function showStatus(message, type) {
+                if (statusDiv) {
+                    statusDiv.textContent = message;
+                    statusDiv.className = type;
+                    statusDiv.style.display = 'block';
+                }
+                console.log(message);
+            }
+
+            function getCurrentLocation() {
+                return new Promise((resolve, reject) => {
+                    if (!navigator.geolocation) {
+                        reject(new Error('Geolocation is not supported by your browser'));
+                        return;
+                    }
+                    
+                    navigator.geolocation.getCurrentPosition(
+                        position => {
+                            currentPosition = {
+                                latitude: position.coords.latitude,
+                                longitude: position.coords.longitude
+                            };
+                            resolve(currentPosition);
+                        },
+                        error => {
+                            reject(error);
+                        },
+                        {
+                            enableHighAccuracy: true,
+                            timeout: 5000,
+                            maximumAge: 0
+                        }
+                    );
+                });
+            }
+
+            function drawQRBox(location) {
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = '#FF3B58';
+                ctx.beginPath();
+                ctx.moveTo(location.topLeftCorner.x, location.topLeftCorner.y);
+                ctx.lineTo(location.topRightCorner.x, location.topRightCorner.y);
+                ctx.lineTo(location.bottomRightCorner.x, location.bottomRightCorner.y);
+                ctx.lineTo(location.bottomLeftCorner.x, location.bottomLeftCorner.y);
+                ctx.lineTo(location.topLeftCorner.x, location.topLeftCorner.y);
+                ctx.stroke();
+
+                ctx.fillStyle = '#FF3B58';
+                const dots = [
+                    location.topLeftCorner,
+                    location.topRightCorner,
+                    location.bottomRightCorner,
+                    location.bottomLeftCorner
+                ];
+                dots.forEach(dot => {
+                    ctx.beginPath();
+                    ctx.arc(dot.x, dot.y, 8, 0, 2 * Math.PI);
+                    ctx.fill();
+                });
+            }
+
+            if (typeof jsQR === 'undefined') {
+                showStatus('Error: QR scanning library not loaded. Please check your internet connection and refresh.', 'error');
+                if (startButton) startButton.disabled = true;
+                return;
+            }
+
+            if (!navigator.mediaDevices?.getUserMedia) {
+                showStatus('Your browser does not support camera access', 'error');
+                if (startButton) startButton.disabled = true;
+                return;
+            }
+
+            async function startCamera() {
+                try {
+                    const constraints = {
+                        video: {
+                            width: 640,
+                            height: 480,
+                            facingMode: 'environment'
+                        }
+                    };
+
+                    videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    
+                    videoElement.srcObject = videoStream;
+                    videoElement.setAttribute('playsinline', true);
+                    
+                    videoElement.onloadedmetadata = () => {
+                        videoElement.play();
+                        startButton.disabled = true;
+                        stopButton.disabled = false;
+                        videoContainer.style.display = 'block';
+                        resultContainer.style.display = 'none';
+                        scanning = true;
+                        scanQRCode();
+                    };
+                    
+                    showStatus('Camera started successfully', 'success');
+                } catch (error) {
+                    showStatus('Error accessing camera: ' + error.message, 'error');
+                    console.error('Camera error:', error);
+                }
+            }
+
+            function stopCamera() {
+                if (videoStream) {
+                    videoStream.getTracks().forEach(track => track.stop());
+                    videoStream = null;
+                    scanning = false;
+                    startButton.disabled = !campaignSelect.value;
+                    stopButton.disabled = true;
+                    videoContainer.style.display = 'none';
+                    videoElement.srcObject = null;
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    showStatus('Camera stopped', 'success');
+                }
+            }
+
+            async function scanQRCode() {
+                if (!scanning) return;
+                
+                try {
+                    ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    
+                    const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+                    if (code) {
+                        console.log('QR Code detected:', code.data);
+                        
+                        drawQRBox(code.location);
+                        scanning = false;
+                        
+                        try {
+                            const response = await fetch('/scan_qr', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json'
+                                },
+                                mode: 'cors',
+                                credentials: 'same-origin',
+                                body: JSON.stringify({ qr_text: code.data })
+                            });
+                            
+                            const data = await response.json();
+                            
+                            resultContainer.style.display = 'block';
+                            const citizenInfo = document.getElementById('citizen-info');
+                            
+                            if (response.ok) {
+                                displayCitizenInfo(data.citizen, code.data);
+                            } else {
+                                citizenInfo.innerHTML = `
+                                    <h3>QR Code Content</h3>
+                                    <p style="background-color: #e9ecef; padding: 10px; border-radius: 4px; word-break: break-all;">
+                                        <strong>Raw QR Text:</strong> ${code.data}
+                                    </p>
+                                    <div class="error" style="margin-top: 15px;">
+                                        <p><strong>Error:</strong> ${data.error}</p>
+                                    </div>
+                                `;
+                                document.getElementById('confirmButton').style.display = 'none';
+                            }
+                        } catch (error) {
+                            showStatus('Error processing QR code: ' + error.message, 'error');
+                            scanning = true;
+                            requestAnimationFrame(scanQRCode);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Scanning error:', error);
+                    showStatus('Error scanning: ' + error.message, 'error');
+                    scanning = false;
+                    return;
+                }
+
+                if (scanning) {
+                    requestAnimationFrame(scanQRCode);
+                }
+            }
+
+            async function displayCitizenInfo(citizen, qrText) {
+    const qrParts = qrText.split('_');
+    const extractedName = qrParts[1] || 'N/A';
+    const citizenInfo = document.getElementById('citizen-info');
+    
+    // Fetch scan history for this citizen
+    try {
+        console.log('Fetching scan history for campaign:', campaignSelect.value);
+        console.log('Extracted Name:', extractedName);
+
+        const historyResponse = await fetch(`/get_campaign_scans?campaign_id=${campaignSelect.value}`);
+        const historyData = await historyResponse.json();
+        
+        console.log('Full History Data:', historyData);
+
+        // Debug: Log citizen scan histories
+        if (historyData.citizen_scan_histories) {
+            console.log('Citizen Scan Histories:', historyData.citizen_scan_histories);
+            
+            // More detailed logging
+            Object.entries(historyData.citizen_scan_histories).forEach(([cidKey, historyScan]) => {
+                console.log(`Citizen ID ${cidKey} Scans:`, historyScan);
+                historyScan.forEach(scan => {
+                    console.log('Scan Details:', {
+                        citizenName: scan.citizen_name,
+                        campaignName: scan.campaign_name,
+                        scannedAt: scan.scanned_at
+                    });
+                });
+            });
+        }
+
+        // Find scan history for this citizen
+        let scanHistory = [];
+        if (historyData.citizen_scan_histories) {
+            const citizenIds = Object.keys(historyData.citizen_scan_histories);
+            
+            for (let cidKey of citizenIds) {
+                const historyScan = historyData.citizen_scan_histories[cidKey];
+                
+                // Log detailed matching logic
+                console.log(`Checking citizen ID ${cidKey}`);
+                console.log('History Scan:', historyScan);
+                
+                // Try different matching strategies
+                const matchedScans = historyScan.filter(scan => 
+                    scan.citizen_name === extractedName ||
+                    scan.citizen_name.includes(extractedName) ||
+                    extractedName.includes(scan.citizen_name)
+                );
+                
+                if (matchedScans.length > 0) {
+                    scanHistory = matchedScans;
+                    break;
+                }
+            }
+        }
+
+        console.log('Matched Scan History:', scanHistory);
+
+        // Prepare scan history HTML
+        const scanHistoryHTML = scanHistory.length > 0 
+            ? `
+                <br><h3>Scan History</h3>
+                <div class="scan-history">
+                    ${scanHistory.map(scan => `
+                        <div class="scan-history-item">
+                            <p><strong>Campaign:</strong> ${scan.campaign_name || 'Unknown Campaign'}</p>
+                            <p><strong>Scanned At:</strong> ${scan.scanned_at ? new Date(scan.scanned_at).toLocaleString() : 'N/A'}</p>
+                            <p><strong>Location:</strong> ${scan.latitude}, ${scan.longitude}</p>
+                            ${scan.notes ? `<p><strong>Notes:</strong> ${scan.notes}</p>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `
+            : '<p>No scan history found for this citizen.</p>';
+
+        // Rest of the existing code remains the same...
+        citizenInfo.innerHTML = `
+            <h3>QR Code Content</h3>
+            <p style="background-color: #e9ecef; padding: 10px; border-radius: 4px; word-break: break-all;">
+                <strong>Raw QR Text:</strong> ${qrText}
+            </p>
+            <h3>Citizen Information</h3>
+            <p><strong>Name:</strong> ${extractedName}</p>
+            <p><strong>Municipality:</strong> ${qrParts[2] || 'N/A'}</p>
+            <p><strong>Barangay:</strong> ${qrParts[3] || 'N/A'}</p>
+            <p><strong>Last Scan Location:</strong> ${citizen.latitude ? `${citizen.latitude}, ${citizen.longitude}` : 'No previous scan'}</p>
+            <p><strong>Last Scan Time:</strong> ${citizen.timestamp || 'N/A'}</p>
+            <div id="location-info" class="location-info location-pending">
+                <p><strong>Getting current location...</strong></p>
+            </div>
+            ${scanHistoryHTML}
+        `;
+
+        // Rest of the existing location handling code...
+
+    } catch (error) {
+        console.error('Error fetching scan history:', error);
+        // Fallback to original display if history fetch fails
+        citizenInfo.innerHTML = `
+            <h3>Error</h3>
+            <p>Could not fetch scan history: ${error.message}</p>
+        `;
+    }
+}
+
+document.getElementById('confirmButton').addEventListener('click', async function() {
+    if (!currentPosition) {
+        showStatus('Please wait for location data to be available', 'error');
+        return;
+    }
+
+    if (!campaignSelect.value) {
+        showStatus('Please select a campaign', 'error');
+        return;
+    }
+
+    // Debugging: log the entire citizen info element
+    const citizenInfoElement = document.getElementById('citizen-info');
+    console.log('Citizen Info Element:', citizenInfoElement);
+    
+    // Debugging: log all paragraphs in the citizen info
+    if (citizenInfoElement) {
+        const paragraphs = citizenInfoElement.querySelectorAll('p');
+        console.log('Paragraphs:', paragraphs);
+    }
+
+    // Get the raw QR text paragraph
+    const rawQRTextParagraph = document.querySelector('#citizen-info p[style*="background-color"]');
+    
+    if (!rawQRTextParagraph) {
+        showStatus('Could not find QR text paragraph', 'error');
+        console.error('No paragraph with QR text found');
+        return;
+    }
+
+    const rawQRText = rawQRTextParagraph.textContent.replace('Raw QR Text: ', '').trim();
+    console.log('Raw QR Text:', rawQRText);
+
+    const qrParts = rawQRText.split('_');
+    const citizenName = qrParts[1];
+
+    if (!citizenName) {
+        showStatus('Unable to extract citizen name', 'error');
+        console.error('No name found in QR text parts:', qrParts);
+        return;
+    }
+
+    try {
+        const response = await fetch('/confirm_update', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            mode: 'cors',
+            credentials: 'same-origin',
+            body: JSON.stringify({ 
+                campaign_id: campaignSelect.value,
+                name: citizenName.trim(), // Trim to remove any extra whitespace
+                latitude: currentPosition.latitude,
+                longitude: currentPosition.longitude,
+                scan_time: new Date().toISOString(),
+                notes: scanNotes.value,
+                qr_text: rawQRText
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showStatus('Update successful!', 'success');
+            resultContainer.style.display = 'none';
+            stopCamera();
+            scanNotes.value = ''; // Clear notes field
+        } else {
+            showStatus(`Error: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        showStatus('Error updating record: ' + error.message, 'error');
+        console.error('Full error:', error);
+    }
+});
+
+            document.getElementById('rescanButton').addEventListener('click', function() {
+                resultContainer.style.display = 'none';
+                statusDiv.style.display = 'none';
+                scanning = true;
+                scanQRCode();
+            });
+
+            startButton.addEventListener('click', startCamera);
+            stopButton.addEventListener('click', stopCamera);
+
+            // Load campaigns when page loads
+            loadCampaigns();
+        });
+    </script>
+</body>
+</html>

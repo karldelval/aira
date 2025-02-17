@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIRA Reporting System</title>
+    <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+    <link rel="stylesheet" href="static/css/styles.css">
+    <script src="static/js/scripts.js" defer></script>
+    <style>
+       /* Global reset and basic styling */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Roboto', sans-serif;
+}
+
+body {
+    background-color: #f4f4f9;
+    color: #333;
+}
+
+/* Header styles */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #000000;
+    padding: 10px 20px;
+    color: white;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.header-logo img {
+    height: 40px;
+    margin-right: 10px;
+}
+
+.header-title {
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+/* Navigation menu styles */
+.menu-bar {
+    display: flex;
+    gap: 15px;
+}
+
+.menu-bar a {
+    color: white;
+    text-decoration: none;
+    font-weight: bold;
+    transition: color 0.3s;
+}
+
+.menu-bar a:hover {
+    color: #FFD700;
+}
+
+.hamburger {
+    display: none;
+    flex-direction: column;
+    cursor: pointer;
+    gap: 5px;
+}
+
+.hamburger div {
+    width: 25px;
+    height: 3px;
+    background-color: white;
+    border-radius: 2px;
+}
+
+/* Center the form container */
+.container {
+    margin: 20px auto;
+    padding: 20px;
+    max-width: 600px;
+    background-color: #777790;
+    border-radius: 10px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+/* Center and resize logo */
+.container img {
+    width: 300px;
+    height: 340px;
+    margin: 0 auto 1px;
+    display: block;
+}
+
+/* Form styles */
+h1 {
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 1.8em;
+    color: #333;
+}
+
+textarea {
+    width: 100%;
+    height: 150px; /* Larger text area */
+    margin: 15px 0;
+    padding: 12px;
+    font-size: 1em;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    resize: vertical;
+    box-shadow: inset 0px 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* File input */
+input[type="file"] {
+    margin: 10px 0 20px;
+}
+
+/* Buttons styling */
+button {
+    background-color: #534f70; /* Nice purple shade */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 12px;
+    font-size: 1em;
+    width: 100%;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+button:hover {
+    background-color: #7e6a87; /* Slightly lighter purple */
+}
+
+#mic-btn {
+    background-color: #553c65; /* Green button for mic */
+    margin-bottom: 15px;
+}
+
+#mic-btn:hover {
+    background-color: #45a049;
+}
+/* Example CSS to style error messages in red */
+.error {
+    color: red;
+    font-weight: bold;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    padding: 10px;
+    border-radius: 5px;
+}
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .menu-bar {
+        display: none;
+        flex-direction: column;
+        background-color: #000;
+        position: absolute;
+        top: 60px;
+        right: 0;
+        width: 100%;
+        text-align: center;
+        gap: 10px;
+    }
+
+    .menu-bar a {
+        display: block;
+        padding: 10px;
+    }
+
+    .hamburger {
+        display: flex;
+    }
+
+    .menu-bar.active {
+        display: flex;
+    }
+
+    .container {
+        padding: 20px;
+    }
+}
+    </style>
+    <style>
+        /* Center the container and its children */
+        #capture-options, #preview-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 10px; /* Adds spacing between elements */
+            margin: 20px;
+        }
+    
+        /* Optional styling for buttons */
+        #capture-options button {
+            font-size: 16px;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+    
+        /* Optional styling for the video, canvas, and image preview */
+        #video-preview, #canvas-preview, #photo-preview {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header with logo and menu bar -->
+    <header class="header">
+        <div class="header-logo">
+            <img src="static/images/AIRA-1.png" alt="Logo">
+            <span class="header-title">AIRA Command Center</span>
+        </div>
+        <!-- Hamburger Menu Icon -->
+        <div class="hamburger" id="hamburger">
+            <div></div>
+            <div></div>
+            <div></div>
+        </div>
+        <!-- Navigation Menu -->
+        <nav class="menu-bar" id="menu-bar">
+            <a href="#home">Home</a>
+            <a href="/login" id="login-link">Login</a>
+            <a href="/view_messages">Inbox</a>
+            <a href="/register">Register</a>
+            <a href="/answer_survey">Answer Survey</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <img src="static/images/upvillage.png" class="center" alt="B_logo" style="width: 150px; height: auto;">
+        <h2 style="color: white;">Submit an Incident</h2>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <ul>
+            {% for category, message in messages %}
+              <p class="error">{{ message }}</p>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endwith %}<br>
+        <!-- Incident Report Form -->
+        <form id="report-form" action="/report" method="POST" enctype="multipart/form-data">
+            <input type="hidden" id="user_id" name="user_id" value="">
+            <div id="micContainer">
+                <button type="button" id="mic-btn">🎤 Start Mic</button>
+            </div>
+            <textarea id="report_text" name="report_text" placeholder="Type or Start Mic..." required></textarea>
+            <label for="media">Optional Image/Video:</label>
+    <input type="file" id="media" name="media" accept="image/*,video/*">
+
+    <div id="capture-options">
+        <button type="button" id="capture-instance">🎥 Capture Instance</button>
+        
+        <button type="button" id="replay-video" style="display:none;">⏪ Replay Video</button>
+    </div>
+
+    <div id="preview-container" style="display:none;">
+        <!-- Preview container for live camera feed -->
+        <video id="video-preview" width="320" height="240" autoplay></video>
+        <button type="button" id="switch-camera">🔄 Switch Camera</button>
+    </div>
+
+    <div id="replay-container" style="display:none;">
+        <!-- Replay container for recorded video -->
+        <p>Replay:</p>
+        <video id="replay-video-element" width="320" height="240" controls></video>
+    </div>
+
+    <div id="timer-container">
+        <p>Time (max 10s): <span id="timer">0</span> seconds</p>
+    </div><br>
+            <input type="hidden" id="latitude" name="latitude">
+            <input type="hidden" id="longitude" name="longitude">
+            <button type="submit" id="submit-btn">Submit Report</button>
+        </form>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            let isRecording = false;
+            let mediaRecorder;
+            let recordedChunks = [];
+            let currentStream = null;
+            let currentCameraMode = 'environment'; // Default to back camera
+            let timerInterval;
+            let elapsedTime = 0;
+    
+            const videoElement = document.getElementById('video-preview');
+            const replayVideoElement = document.getElementById('replay-video-element');
+            const replayButton = document.getElementById('replay-video');
+            const captureButton = document.getElementById('capture-instance');
+            const switchCameraButton = document.getElementById('switch-camera');
+            const previewContainer = document.getElementById('preview-container');
+            const replayContainer = document.getElementById('replay-container');
+            const timerElement = document.getElementById('timer');
+            const form = document.getElementById("report-form");
+    
+            // Start camera
+            function startCamera(cameraMode = 'environment') {
+                const constraints = { video: { facingMode: cameraMode } };
+                return navigator.mediaDevices.getUserMedia(constraints)
+                    .then(stream => {
+                        if (currentStream && !isRecording) {
+                            currentStream.getTracks().forEach(track => track.stop());
+                        }
+                        currentStream = stream;
+                        videoElement.srcObject = stream;
+                        videoElement.play();
+                    })
+                    .catch(err => {
+                        console.error("Error accessing camera:", err);
+                        alert("Unable to access the camera. Please check your settings.");
+                    });
+            }
+    
+            // Stop camera
+            function stopCamera() {
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop());
+                    currentStream = null;
+                }
+                videoElement.pause();
+                videoElement.srcObject = null;
+            }
+    
+            // Stop recording
+            function stopRecording() {
+                if (mediaRecorder && isRecording) {
+                    mediaRecorder.stop();
+                    clearInterval(timerInterval);
+                    isRecording = false;
+                    captureButton.textContent = "🎥 Capture Instance";
+                }
+            }
+    
+            // Event listeners
+            switchCameraButton.addEventListener("click", function () {
+                if (isRecording) {
+                    alert("You cannot switch the camera while recording.");
+                    return;
+                }
+                currentCameraMode = (currentCameraMode === 'user') ? 'environment' : 'user'; // Toggle camera
+                startCamera(currentCameraMode);
+            });
+    
+            captureButton.addEventListener("click", function () {
+                if (!isRecording) {
+                    startCamera(currentCameraMode).then(() => {
+                        mediaRecorder = new MediaRecorder(currentStream);
+                        recordedChunks = []; // Clear previous recordings
+    
+                        mediaRecorder.ondataavailable = event => recordedChunks.push(event.data);
+                        mediaRecorder.onstop = () => {
+                            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                            const videoUrl = URL.createObjectURL(blob);
+    
+                            replayVideoElement.src = videoUrl;
+                            replayVideoElement.currentTime = 0;
+                            replayButton.style.display = "block";
+                        };
+    
+                        mediaRecorder.start();
+                        isRecording = true;
+                        captureButton.textContent = "🛑 Stop Recording";
+                        replayButton.style.display = "none";
+                        previewContainer.style.display = "block";
+                        replayContainer.style.display = "none";
+    
+                        // Start timer
+                        elapsedTime = 0;
+                        timerElement.textContent = elapsedTime;
+                        timerInterval = setInterval(() => {
+                            elapsedTime++;
+                            timerElement.textContent = elapsedTime;
+                            if (elapsedTime >= 10) stopRecording(); // Auto-stop after 10 seconds
+                        }, 1000);
+                    });
+                } else {
+                    stopRecording();
+                }
+            });
+    
+            replayButton.addEventListener("click", () => {
+                if (recordedChunks.length > 0) {
+                    previewContainer.style.display = "none";
+                    replayContainer.style.display = "block";
+                    replayVideoElement.play();
+                } else {
+                    alert("No video captured yet.");
+                }
+            });
+    
+            // Form submission
+            form.addEventListener("submit", function (event) {
+                event.preventDefault();
+                const formData = new FormData(form);
+    
+                // Attach captured video
+                if (recordedChunks.length > 0) {
+                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                    const videoFile = new File([blob], 'capture_video.webm', { type: 'video/webm' });
+                    formData.append('media', videoFile);
+                }
+    
+                // Attach selected file if no video
+                if (!formData.has('media')) {
+                    const mediaFile = document.getElementById("media").files[0];
+                    if (mediaFile) {
+                        formData.append('media', mediaFile);
+                    }
+                }
+    
+                // Show loading spinner
+                captureButton.textContent = "Uploading...";
+                captureButton.disabled = true;
+    
+                // Submit the form data
+                fetch(form.action, { method: 'POST', body: formData })
+                    .then(response => {
+                        if (!response.ok) throw new Error(`Server responded with status: ${response.status}`);
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Form submitted successfully:', data);
+                        alert('Submission successful!');
+                    })
+                    .catch(error => {
+                        console.error('Error submitting form:', error);
+                        alert('Submission failed.');
+                    })
+                    .finally(() => {
+                        captureButton.textContent = "🎥 Capture Instance";
+                        captureButton.disabled = false;
+                    });
+            });
+    
+            // Initialize camera on load
+            startCamera(currentCameraMode);
+        });
+    </script>
+</body>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const micBtn = document.getElementById("mic-btn");
+            const reportTextArea = document.getElementById("report_text");
+            let recognition;
+            let isRecording = false;
+            let finalTranscript = ""; // Store final transcript
+            let interimTranscript = ""; // Store interim transcript
+    
+            // Check for SpeechRecognition support
+            const isSpeechRecognitionSupported = 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window;
+    
+            // Initialize speech recognition if supported
+            if (isSpeechRecognitionSupported) {
+                if ('SpeechRecognition' in window) {
+    recognition = new window.SpeechRecognition();
+} else {
+    recognition = new window.webkitSpeechRecognition();
+}
+    
+                recognition.lang = 'en-US'; // Set language to Tagalog/Filipino
+                recognition.interimResults = true; // Enable interim results
+                recognition.maxAlternatives = 1; // Set alternatives limit to 1
+    
+                let finalTranscript = ""; // To accumulate finalized speech
+let interimTranscript = ""; // To hold real-time interim speech
+
+recognition.onresult = (event) => {
+    interimTranscript = ""; // Reset interim transcript on each event
+
+    // Loop through results
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+
+        if (result.isFinal) {
+            // Append finalized speech to finalTranscript
+            finalTranscript += result[0].transcript.toLowerCase() + " ";
+        } else {
+            // Update interimTranscript for real-time display
+            interimTranscript = result[0].transcript.toLowerCase();
+        }
+    }
+
+    // Update text area in real-time: finalized + interim speech
+    reportTextArea.value = finalTranscript + interimTranscript;
+
+    // Scroll to bottom to show latest updates
+    reportTextArea.scrollTop = reportTextArea.scrollHeight;
+};
+
+recognition.onerror = (event) => {
+    console.error("Speech recognition error:", event.error);
+    alert("Speech recognition error: " + event.error);
+    stopVoiceRecognition();
+};
+    
+                recognition.onend = () => {
+                    if (isRecording) recognition.start(); // Restart if still recording
+                };
+            } else {
+                alert("Speech recognition is not supported on this device.");
+            }
+    
+            // Start or stop voice recognition on button click
+            const startVoiceRecognition = () => {
+                if (isSpeechRecognitionSupported) {
+                    recognition.start();
+                    micBtn.innerText = "🔴 Stop Mic";
+                } else {
+                    alert("Speech recognition is not supported on this device.");
+                }
+            };
+    
+            const stopVoiceRecognition = () => {
+                if (recognition) {
+                    recognition.stop();
+                    micBtn.innerText = "🎤 Start Mic";
+                }
+            };
+    
+            micBtn.addEventListener("click", () => {
+                if (isRecording) {
+                    stopVoiceRecognition();
+                } else {
+                    startVoiceRecognition();
+                }
+                isRecording = !isRecording;
+            });
+    
+            
+    
+            // Fetch session to check if user is logged in
+            const fetchSession = async () => {
+                try {
+                    const response = await fetch('/session');
+                    const data = await response.json();
+                    if (data.logged_in) {
+                        document.getElementById('user_id').value = data.user_id;
+                        document.getElementById('login-link').innerText = 'Logout';
+                        document.getElementById('login-link').href = '/logout';
+
+                        const changePasswordLink = document.createElement('a');
+                        changePasswordLink.href = '/change_password';
+                        changePasswordLink.innerText = 'Change Password';
+                        menuBar.appendChild(changePasswordLink);
+                    } else {
+                        alert("You must be logged in to report an incident.");
+                        window.location.href = "/login";
+                    }
+                } catch (error) {
+                    console.error("Error fetching session data:", error);
+                }
+            };
+    
+            fetchSession();
+        });
+    </script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        navigator.geolocation.getCurrentPosition(function (position) {
+            document.getElementById('latitude').value = position.coords.latitude;
+            document.getElementById('longitude').value = position.coords.longitude;
+        });
+    });
+
+      
+</script>
+
+    <script>
+        const hamburger = document.getElementById("hamburger");
+        const menuBar = document.getElementById("menu-bar");
+
+        hamburger.addEventListener("click", () => {
+            menuBar.classList.toggle("active");
+        });
+    </script>
+      {% include 'footer.html' %}
+</body>
+</html>

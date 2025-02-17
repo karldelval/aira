@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIRA Citizen Portal</title>
+    <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+    <link rel="stylesheet" href="static/css/styles.css">
+    <script src="static/js/scripts.js" defer></script>
+    <style>
+        /* Global reset and basic styling */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Roboto', sans-serif;
+        }
+
+        body {
+            background-color: #f4f4f9;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        /* Header styles */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #0047ab; /* Modern blue */
+            padding: 20px 30px;
+            color: white;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-logo img {
+            height: 50px;
+            margin-right: 15px;
+        }
+
+        .header-title {
+            font-size: 1.4em;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .menu-bar {
+            display: flex;
+            gap: 25px;
+        }
+
+        .menu-bar a {
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease-in-out;
+        }
+
+        .menu-bar a:hover {
+            color: #FFD700; /* Bright yellow */
+        }
+
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            cursor: pointer;
+            gap: 5px;
+        }
+
+        .hamburger div {
+            width: 30px;
+            height: 3px;
+            background-color: white;
+            border-radius: 2px;
+        }
+
+        /* Main content styling */
+        .container {
+            margin: 20px auto;
+            padding: 30px;
+            max-width: 1100px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        section {
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            font-size: 1.6em;
+            color: #0047ab;
+            margin-bottom: 15px;
+        }
+
+        p {
+            font-size: 1.1em;
+            color: #555;
+        }
+
+        /* Column layout for article */
+        .article {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .article img {
+            max-width: 100%;
+            border-radius: 10px;
+        }
+
+        .article-content {
+            width: 70%;
+        }
+
+        .article-sidebar {
+            width: 30%;
+            background-color: #f1f1f1;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Sidebar and content separation */
+        .sidebar h3 {
+            margin-bottom: 20px;
+            font-size: 1.3em;
+        }
+
+        .sidebar ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .sidebar ul li {
+            margin-bottom: 10px;
+        }
+
+        .sidebar ul li a {
+            text-decoration: none;
+            color: #0047ab;
+            font-size: 1.1em;
+            transition: color 0.3s ease;
+        }
+
+        .sidebar ul li a:hover {
+            color: #FFD700;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .menu-bar {
+                display: none;
+                flex-direction: column;
+                background-color: #0047ab;
+                position: absolute;
+                top: 60px;
+                right: 0;
+                width: 100%;
+                text-align: center;
+                gap: 15px;
+            }
+
+            .menu-bar a {
+                padding: 12px 0;
+            }
+
+            .hamburger {
+                display: flex;
+            }
+
+            .menu-bar.active {
+                display: flex;
+            }
+
+            .container {
+                padding: 20px;
+            }
+
+            .sidebar {
+                width: 100%;
+                margin-top: 20px;
+            }
+
+            section {
+                margin-bottom: 25px;
+            }
+
+            .article {
+                flex-direction: column;
+            }
+
+            .article-sidebar {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header with logo and menu bar -->
+    <header class="header">
+        <div class="header-logo">
+            <img src="static/images/AIRA-1.png" alt="Logo">
+            <span class="header-title">AIRA Citizen Portal</span>
+        </div>
+        <!-- Hamburger Menu Icon -->
+        <div class="hamburger" id="hamburger">
+            <div></div>
+            <div></div>
+            <div></div>
+        </div>
+        <!-- Navigation Menu -->
+        <nav class="menu-bar" id="menu-bar">
+            <a href="#dashboard">Dashboard</a>
+            <a href="#news">News & Announcements</a>
+            <a href="#report">Report Incident</a>
+            <a href="#services">Request Services</a>
+            <a href="#nearby-incidents">Nearby Incidents</a>
+            <a href="#feedback">Submit Feedback</a>
+            <a href="#chatbot">Chatbot</a>
+            <a href="#profile">Profile</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <!-- Article Section -->
+        <section id="news">
+            <h2>News & Announcements</h2>
+            <div class="article">
+                <!-- Article Content -->
+                <div class="article-content">
+                    <h3>New Health Guidelines Announced</h3>
+                    <p><strong>Date:</strong> January 6, 2025</p>
+                    <img src="static/images/news-image.jpg" alt="Health Guidelines" />
+                    <p>In light of recent developments, new health guidelines have been announced for the community. These include increased safety measures in public spaces, new vaccination protocols, and mandatory health screenings for local residents. These guidelines aim to ensure the safety and well-being of the citizens. Please follow the instructions provided by the local authorities.</p>
+                </div>
+                <!-- Sidebar for additional content -->
+                <div class="article-sidebar">
+                    <h3>Quick Links</h3>
+                    <ul>
+                        <li><a href="#report">Report an Incident</a></li>
+                        <li><a href="#services">Request Services</a></li>
+                        <li><a href="#nearby-incidents">Nearby Incidents</a></li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Report Incident Section -->
+        <section id="report">
+            <h2>Report Incident</h2>
+            <form action="/report" method="POST" enctype="multipart/form-data">
+                <textarea name="incident_details" placeholder="Describe the incident here..." required></textarea>
+                <input type="file" name="incident_media" accept="image/*,video/*">
+                <button type="submit">Submit Report</button>
+            </form>
+        </section>
+
+        <!-- Request Services Section -->
+        <section id="services">
+            <h2>Request Barangay Services</h2>
+            <p>Select the services you wish to request:</p>
+            <ul>
+                <li>Home Carwash</li>
+                <li>Housekeeping</li>
+                <li>Massage Services</li>
+            </ul>
+            <button>Request Service</button>
+        </section>
+
+        <!-- Nearby Incidents Section -->
+        <section id="nearby-incidents">
+            <h2>Nearby Incidents</h2>
+            <p>See recent incidents near you:</p>
+            <div>
+                <p>Incident 1: Fire in Sector A</p>
+                <p>Incident 2: Flooding in Sector B</p>
+            </div>
+        </section>
+
+        <!-- Submit Feedback Section -->
+        <section id="feedback">
+            <h2>Submit Reviews and Suggestions</h2>
+            <form action="/feedback" method="POST">
+                <textarea name="feedback_details" placeholder="Your feedback or suggestion..." required></textarea>
+                <button type="submit">Submit Feedback</button>
+            </form>
+        </section>
+
+        <!-- Chatbot Section -->
+        <section id="chatbot">
+            <h2>Chat with Our AI</h2>
+            <div id="chat-container">
+                <textarea id="chat-input" placeholder="Ask your questions here..."></textarea>
+                <button id="chat-submit">Send</button>
+                <div id="chat-output"></div>
+            </div>
+        </section>
+
+        <!-- Profile Section -->
+        <section id="profile">
+            <h2>Your Profile</h2>
+            <p>View and update your details:</p>
+            <form action="/update-profile" method="POST">
+                <input type="text" name="name" placeholder="Your Name" required>
+                <input type="email" name="email" placeholder="Your Email" required>
+                <textarea name="address" placeholder="Your Address"></textarea>
+                <button type="submit">Update Profile</button>
+            </form>
+        </section>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // JavaScript to toggle the hamburger menu on mobile
+            const hamburger = document.getElementById('hamburger');
+            const menuBar = document.getElementById('menu-bar');
+
+            hamburger.addEventListener('click', function () {
+                menuBar.classList.toggle('active');
+            });
+        });
+    </script>
+</body>
+</html>

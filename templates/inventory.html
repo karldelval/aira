@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+    <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Tracking System</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>{% include 'header.html' %}
+{% include "chatbase.html" %}
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center">Inventory Tracking System</h1>
+
+        <!-- Add Resource Form -->
+        <form action="/add" method="POST" class="my-4">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <input type="text" name="name" class="form-control" placeholder="Resource Name" required>
+                </div>
+                <div class="col-md-3">
+                    <select name="category" class="form-select" required>
+                        <option value="" disabled selected>Select Category</option>
+                        <option value="Relief Goods">Relief Goods</option>
+                        <option value="Medical Supplies">Medical Supplies</option>
+                        <option value="Rescue Equipment">Rescue Equipment</option>
+                        <option value="Barangay Resources">Barangay Resources</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <input type="number" name="quantity" class="form-control" placeholder="Quantity" required>
+                </div>
+                <div class="col-md-4">
+                    <input type="text" name="description" class="form-control" placeholder="Description">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary mt-3">Add Resource</button>
+        </form>
+
+        <!-- Display Resources -->
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Quantity</th>
+                    <th>Description</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for resource in resources %}
+                <tr>
+                    <td>{{ resource.name }}</td>
+                    <td>{{ resource.category }}</td>
+                    <td>{{ resource.quantity }}</td>
+                    <td>{{ resource.description }}</td>
+                    <td>
+                        <!-- Update Button -->
+                        <button class="btn btn-sm btn-warning" onclick="openEditForm({{ resource.id }}, '{{ resource.name }}', '{{ resource.category }}', {{ resource.quantity }}, '{{ resource.description }}')">Edit</button>
+
+                        <!-- Delete Form -->
+                        <form action="/delete/{{ resource.id }}" method="POST" style="display: inline;">
+                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Edit Modal (Optional JS Functionality) -->
+    <script>
+        function openEditForm(id, name, category, quantity, description) {
+            // Logic to populate and open an edit modal
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <meta charset="UTF-8">
+    <title>View Citizen Details</title>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f7f6;
+        }
+        header {
+            background-color: #343a40;
+            color: white;
+            padding: 10px 0;
+            text-align: center;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        p {
+            font-size: 16px;
+            color: #555;
+        }
+        strong {
+            color: #333;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .file-link {
+            color: #007bff;
+            text-decoration: none;
+        }
+        .file-link:hover {
+            text-decoration: underline;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        .kyc-details {
+            margin-top: 20px;
+        }
+        .photo {
+            width: 150px;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+
+{% include "chatbase.html" %}
+{% include 'header2.html' %}
+
+<body>
+    <div class="container">
+        <h1>Details for {{ citizen.NAME }}</h1>
+        <div class="section">
+            <p><strong>Address:</strong> {{ citizen.ADDRESS or 'Not available' }}</p>
+            <p><strong>Barangay:</strong> {{ citizen.BARANGAY or 'Not available' }}</p>
+            <p><strong>Precinct:</strong> {{ citizen.PRECINCT or 'Not available' }}</p>
+            <p><strong>Gender:</strong> {{ citizen.GENDER or 'Not available' }}</p>
+            <p><strong>Birthday:</strong> {{ citizen.BIRTHDAY or 'Not available' }}</p>
+            <p><strong>Country Code:</strong> {{ citizen.countrycode or 'Not available' }}</p>
+            <p><strong>Location:</strong> Latitude: {{ citizen.latitude or 'Not available' }}, Longitude: {{ citizen.longitude or 'Not available' }}</p>
+        </div>
+
+        <div class="section">
+            <h2>Documents</h2>
+            <ul>
+                {% for doc in documents %}
+                    <li>
+                        <a href="{{ url_for('static', filename='docs/' ~ citizen.ID|string ~ '/' ~ doc.filename) }}" class="file-link" target="_blank">
+                            {{ doc.filename }}
+                        </a>
+                        <p><strong>Description:</strong> {{ doc.description or 'No description available' }}</p>
+                    </li>
+                {% else %}
+                    <li>No documents available.</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="section kyc-details">
+            <h2>KYC Details</h2>
+            {% if kyc %}
+                <p><strong>ID Number:</strong> {{ kyc.id_number }}</p>
+                <p><strong>Date of Birth:</strong> {{ kyc.dob }}</p>
+                <p><strong>Address:</strong> {{ kyc.address }}</p>
+                <p><strong>Barangay:</strong> {{ kyc.barangay }}</p>
+                <p><strong>Country:</strong> {{ kyc.country }}</p>
+                <p><strong>Verified:</strong> {{ kyc.is_verified if kyc.is_verified else 'No' }}</p>
+                
+                <h3>Photos</h3>
+                <p><strong>Citizen Photo:</strong></p>
+                <img src="{{ url_for('static', filename='photos/' ~ citizen.ID|string ~ '/' ~ kyc.citizen_photo) }}" class="photo" alt="Citizen Photo">
+                
+                <p><strong>ID Photos:</strong></p>
+                <ul>
+                    {% for id_photo in kyc.id_photos %}
+                        <li>
+                            <img src="{{ url_for('static', filename='photos/' ~ citizen.ID|string ~ '/' ~ id_photo.filename) }}" class="photo" alt="{{ id_photo.description }}">
+                            <p><strong>Type:</strong> {{ id_photo.id_type }}</p>
+                            <p><strong>Description:</strong> {{ id_photo.description }}</p>
+                        </li>
+                    {% else %}
+                        <li>No ID photos available.</li>
+                    {% endfor %}
+                </ul>
+
+                <h3>Biometrics</h3>
+                <p><strong>Fingerprint:</strong> {{ kyc.fingerprint or 'Not available' }}</p>
+                <p><strong>Facial Recognition:</strong> {{ kyc.facial_recognition or 'Not available' }}</p>
+                
+                <h3>Additional Information</h3>
+                <p><strong>Occupation:</strong> {{ kyc.occupation }}</p>
+                <p><strong>Company:</strong> {{ kyc.company }}</p>
+                <p><strong>Nationality:</strong> {{ kyc.nationality }}</p>
+                <p><strong>Office Address:</strong> {{ kyc.office_address }}</p>
+                <p><strong>SSS Number:</strong> {{ kyc.sss }}</p>
+                <p><strong>TIN Number:</strong> {{ kyc.tin }}</p>
+                <p><strong>PhilHealth Number:</strong> {{ kyc.philhealth }}</p>
+                <p><strong>Email:</strong> {{ kyc.email }}</p>
+                <p><strong>Mobile Number:</strong> {{ kyc.mobile_number }}</p>
+            {% else %}
+                <p>No KYC details available.</p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Question Analysis</title>
+</head>
+<body>
+    {% include 'header2.html' %}
+
+    <div class="container">
+        <header>
+            <h1 class="title" color="white">Question Analysis</h1>
+        </header>
+        
+        <div class="analysis-content">
+            <div class="loading-spinner" id="loading-spinner">
+                <span>Loading analysis...</span>
+            </div>
+            <div class="analysis-text" id="analysis-text">
+                <!-- The analysis text will be dynamically inserted here -->
+                {{ analysis_text | safe }} <!-- This will directly render the analysis text -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const analysisTextElement = document.getElementById("analysis-text");
+            const loadingSpinner = document.getElementById("loading-spinner");
+
+            // If the analysis text is already available, render it directly
+            const analysisText = "{{ analysis_text | tojson }}";  // Ensure this is correctly passed as a JSON string
+
+            if (analysisText !== "null" && analysisText !== "") {
+                loadingSpinner.style.display = "none";
+                analysisTextElement.innerHTML = analysisText; // Insert the HTML content safely
+            } else {
+                loadingSpinner.style.display = "none";
+                analysisTextElement.textContent = "No analysis available for this question.";
+            }
+        });
+    </script>
+</body>
+</html>

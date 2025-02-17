@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Reports</title>
+    <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+    <style>
+        :root {
+            --primary-bg: #1a1a1a;
+            --secondary-bg: #2d2d2d;
+            --accent-color: #00ff88;
+            --urgent-color: #ff4444;
+            --warning-color: #ffbb33;
+            --text-color: #ffffff;
+            --border-radius: 8px;
+            --sidebar-width: 400px;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--primary-bg);
+            color: var(--text-color);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .dashboard-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100%;
+        }
+
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--secondary-bg);
+            height: 100%;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-header {
+            padding: 15px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-header h1 {
+            margin: 0;
+            color: var(--accent-color);
+            font-size: 1.5rem;
+        }
+
+        .advanced-search-form {
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            overflow-y: auto;
+            max-height: calc(100vh - 100px);
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-field {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-field label {
+            margin-bottom: 5px;
+            color: var(--accent-color);
+            font-size: 0.9rem;
+        }
+
+        .form-field input,
+        .form-field select {
+            background-color: var(--secondary-bg);
+            color: var(--text-color);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 8px;
+            border-radius: var(--border-radius);
+        }
+
+        .submit-btn {
+            background-color: var(--accent-color);
+            color: var(--primary-bg);
+            border: none;
+            padding: 10px 15px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 15px;
+        }
+
+        .submit-btn:hover {
+            background-color: #00cc6e;
+        }
+
+        .table-container {
+            flex: 1;
+            overflow: auto;
+            background-color: var(--primary-bg);
+            padding: 15px;
+        }
+
+        #incident-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        #incident-table thead {
+            background-color: var(--secondary-bg);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        #incident-table th {
+            background-color: var(--secondary-bg);
+            color: var(--accent-color);
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #incident-table td {
+            padding: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        #incident-table tr:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        #incident-table a {
+            color: var(--accent-color);
+            text-decoration: none;
+        }
+
+        #incident-table a:hover {
+            text-decoration: underline;
+        }
+
+        /* Priority Tagging */
+        .tag {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-right: 5px;
+        }
+
+        .tag-urgent {
+            background-color: var(--urgent-color);
+            color: white;
+        }
+
+        .tag-warning {
+            background-color: var(--warning-color);
+            color: var(--primary-bg);
+        }
+
+        .tag-normal {
+            background-color: var(--accent-color);
+            color: var(--primary-bg);
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+            background-color: var(--secondary-bg);
+            color: var(--text-color);
+        }
+
+        .pagination a {
+            color: var(--accent-color);
+            margin: 0 10px;
+            text-decoration: none;
+        }
+
+        .pagination a:hover {
+            text-decoration: underline;
+        }
+
+        .pagination a:disabled {
+            color: rgba(255, 255, 255, 0.3);
+            cursor: not-allowed;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .dashboard-container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                height: auto;
+                max-height: 50vh;
+            }
+
+            .main-content {
+                flex-direction: column;
+                height: auto;
+            }
+
+            .form-row {
+                flex-direction: column;
+            }
+
+            .form-field {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% include 'header.html' %}
+
+    <div class="dashboard-container">
+        <div class="main-content">
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <h1>Incident Reports </h1> <br><br><a href="{{ url_for('incident_analysis') }}" class="submit-btn">Analyze</a> 
+                </div>
+                
+                <!-- Advanced Search Form -->
+                <form method="get" action="{{ url_for('reports') }}" class="advanced-search-form">
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label for="id">By ID:</label>
+                            <input type="text" id="id" name="id" value="{{ request.args.get('id', '') }}">
+                        </div>
+
+                        <div class="form-field">
+                            <label for="category">Category:</label>
+                            <input type="text" id="category" name="category" value="{{ request.args.get('category', '') }}">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label for="type">By Type:</label>
+                            <select id="type" name="type">
+                                <option value="">NONE</option>
+                                <option value="citizen-online">CITIZEN REPORT</option>
+                                <option value="dispatch">DISPATCH</option>
+                                <option value="blotter">BLOTTER</option>
+                            </select>
+                        </div>
+
+                        <div class="form-field">
+                            <label for="tag">By Tag:</label>
+                            <select id="tag" name="tag">
+                                <option value="">NONE</option>
+                                <option value="URGENT">URGENT</option>
+                                <option value="FALSE REPORT">FALSE REPORT</option>
+                                <option value="NON-URGENT">NON-URGENT</option>
+                                <option value="SCAM">SCAM</option>
+                                <option value="DISREGARD">DISREGARD</option>
+                                <option value="RESOLVED">RESOLVED</option>
+                                <option value="EMERGENCY">EMERGENCY</option>
+                                <option value="NO TAG">NO TAG</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label for="location">Location:</label>
+                            <input type="text" id="location" name="location" value="{{ request.args.get('location', '') }}">
+                        </div>
+
+                        <div class="form-field">
+                            <label for="start_date">Start Date:</label>
+                            <input type="date" id="start_date" name="start_date" value="{{ request.args.get('start_date', '') }}">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label for="end_date">End Date:</label>
+                            <input type="date" id="end_date" name="end_date" value="{{ request.args.get('end_date', '') }}">
+                        </div>
+
+                        <div class="form-field">
+                            <label for="report_text">Report Text:</label>
+                            <input type="text" id="report_text" name="report_text" value="{{ request.args.get('report_text', '') }}">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label for="per_page">Records per page:</label>
+                            <select id="per_page" name="per_page">
+                                <option value="10" {% if request.args.get('per_page', '10') == '10' %}selected{% endif %}>10</option>
+                                <option value="20" {% if request.args.get('per_page') == '20' %}selected{% endif %}>20</option>
+                                <option value="50" {% if request.args.get('per_page') == '50' %}selected{% endif %}>50</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="submit-btn">Search</button>
+                </form>
+            </div>
+
+            <div class="table-container">
+                <table id="incident-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Category</th>
+                            <th>Type</th>
+                            <th>Tags</th>
+                            <th>Report</th>
+                            <th>Location</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for incident in incidents %}
+                            <tr>
+                                <td>{{ incident.id }}</td>
+                                <td>{{ incident.category }}</td>
+                                <td>{{ incident.type }}</td>
+                                <td>
+                                    {% for tag in incident.tags %}
+                                        {% if tag == 'URGENT' %}
+                                            <span class="tag tag-urgent">{{ tag }}</span>
+                                        {% elif tag == 'WARNING' %}
+                                            <span class="tag tag-warning">{{ tag }}</span>
+                                        {% else %}
+                                            <span class="tag tag-normal">{{ tag }}</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                </td>
+                                <td><a href="{{ url_for('incident_details', incident_id=incident.id) }}">{{ incident.report_text }}</a></td>
+                                <td>{{ incident.location }}</td>
+                                <td>{{ incident.timestamp }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="pagination">
+            {% if pagination.has_prev %}
+                <a href="{{ url_for('reports', page=pagination.prev_num, per_page=request.args.get('per_page', 10)) }}">&laquo; Prev</a>
+            {% else %}
+                <span>&laquo; Prev</span>
+            {% endif %}
+
+            <span>Page {{ pagination.page }} of {{ pagination.pages }}</span>
+
+            {% if pagination.has_next %}
+                <a href="{{ url_for('reports', page=pagination.next_num, per_page=request.args.get('per_page', 10)) }}">Next &raquo;</a>
+            {% else %}
+                <span>Next &raquo;</span>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

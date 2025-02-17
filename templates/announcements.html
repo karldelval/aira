@@ -1,0 +1,38 @@
+<link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+{% include 'header.html' %}
+
+<h1>Announcements</h1>
+<ul>
+    {% for announcement in announcements %}
+    <li>
+        <a href="{{ url_for('edit_announcement', id=announcement.id) }}">{{ announcement.title }}</a>
+        <a href="{{ url_for('delete_announcement', id=announcement.id) }}">Delete</a>
+        <p>{{ announcement.content }}</p>
+        <p>Viewers: {{ announcement.viewers }}</p>
+    </li>
+    {% endfor %}
+</ul>
+<a href="{{ url_for('add_announcement') }}">Add New Announcement</a>
+
+<h1> Comments </h1>
+
+{% for announcement in announcements %}
+    <li>
+        <a href="{{ url_for('edit_announcement', id=announcement.id) }}">{{ announcement.title }}</a>
+        <a href="{{ url_for('delete_announcement', id=announcement.id) }}">Delete</a>
+        <p>{{ announcement.content }}</p>
+        
+        <h3>Comments</h3>
+        <ul>
+        {% for comment in announcement.comments %}
+            <li>{{ comment.content }} - {{ comment.timestamp }}</li>
+        {% endfor %}
+        </ul>
+
+        <form method="POST" action="{{ url_for('add_comment', announcement_id=announcement.id) }}">
+            <textarea name="comment" placeholder="Add your comment..." required></textarea><br>
+            <button type="submit">Post Comment</button>
+        </form>
+    </li>
+{% endfor %}

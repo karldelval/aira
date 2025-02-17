@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIRA Incident Analysis</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-bg: #1a1a1a;
+            --secondary-bg: #2d2d2d;
+            --accent-color: #1cb840;
+            --text-color: #ffffff;
+            --border-radius: 8px;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--primary-bg);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        .main-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 350px;
+            background-color: var(--secondary-bg);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .content-area {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            overflow-y: auto;
+            background-color: var(--primary-bg);
+        }
+
+        h1 {
+            color: var(--accent-color);
+            text-align: center;
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .analysis-form {
+            display: grid;
+            gap: 15px;
+        }
+
+        .custom-prompt-section {
+            width: 90%; 
+               min-height: 150px; 
+               resize: vertical; 
+               padding: 10px; 
+               
+               border: 1px solid rgba(255,255,255,0.2); 
+               border-radius: var(--border-radius);
+}
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+
+        .form-field {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            margin-bottom: 5px;
+            color: var(--accent-color);
+            font-weight: 500;
+        }
+
+        input, select {
+            background-color: var(--primary-bg);
+            color: var(--text-color);
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 10px;
+            border-radius: var(--border-radius);
+        }
+
+        .btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 12px 15px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            font-weight: 500;
+            text-transform: uppercase;
+            margin-top: 15px;
+        }
+
+        .btn:hover {
+            background-color: #93949a;
+        }
+
+        #analysis-result {
+            background-color: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: var(--border-radius);
+            padding: 15px;
+            margin-top: 20px;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .loading {
+            text-align: center;
+            color: var(--accent-color);
+            font-size: 1.2em;
+            padding: 20px;
+        }
+
+        /* Progress Bar Styles */
+        .progress-container {
+            width: 100%;
+            background-color: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+
+        .progress-bar {
+            width: 0;
+            height: 10px;
+            background-color: var(--accent-color);
+            border-radius: 10px;
+            transition: width 0.5s ease-in-out;
+        }
+
+        #analysis-result pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Roboto Mono', monospace;
+            background-color: rgba(0,0,0,0.1);
+            padding: 15px;
+            border-radius: 4px;
+        }
+
+        .analysis-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .save-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: rgba(28, 184, 64, 0.1);
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            padding: 8px 12px;
+            transition: all 0.3s ease;
+        }
+
+        .save-btn:hover {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        .save-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                height: auto;
+                border-right: none;
+                border-bottom: 1px solid rgba(255,255,255,0.1);
+            }
+
+            .content-area {
+                height: auto;
+            }
+        }
+    </style>
+</head>
+<body>{% include 'header.html' %}
+    <div class="main-container">
+        <div class="sidebar">
+            <h1>AIRA Incident Analysis</h1>
+            
+            <form id="analysis-form" class="analysis-form">
+                <div class="form-row">
+                    <div class="form-field">
+                        <label for="analysis-type">Analysis Type</label>
+                        <select id="analysis-type" name="analysis_type" required>
+                            <option value="">Select Analysis Type</option>
+                            <option value="trend_analysis">Trend Analysis</option>
+                            <option value="location_patterns">Location Patterns</option>
+                            <option value="category_distribution">Category Distribution</option>
+                            <option value="risk_assessment">Risk Assessment</option>
+                            <option value="temporal_analysis">Temporal Analysis</option>
+                            <option value="predictive_insights">Predictive Insights</option>
+                        </select>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="date-range">Date Range</label>
+                        <select id="date-range" name="date_range">
+                            <option value="">All Time</option>
+                            <option value="last_week">Last Week</option>
+                            <option value="last_month">Last Month</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-field">
+                        <label for="category">Category</label>
+                        <select id="category" name="category">
+                            <option value="">All Categories</option>
+                            <option value="Traffic">Traffic</option>
+                            <option value="Fire">Fire</option>
+                            <option value="Medical">Medical</option>
+                            <option value="Crime">Crime</option>
+                            <option value="Natural Disaster">Natural Disaster</option>
+                        </select>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="location">Location</label>
+                        <input type="text" id="location" name="location" placeholder="City/Region">
+                    </div>
+                </div>
+
+                <div id="custom-date-range" style="display:none;" class="form-row">
+                    <div class="form-field">
+                        <label for="start-date">Start Date</label>
+                        <input type="date" id="start-date" name="start_date">
+                    </div>
+                    <div class="form-field">
+                        <label for="end-date">End Date</label>
+                        <input type="date" id="end-date" name="end_date">
+                    </div>
+                </div>
+
+                <div class="custom-prompt-section">
+                    <label for="custom-prompt">Custom Analysis Prompt <small>(Optional)</small></label>
+                    <textarea 
+                    id="custom-prompt" 
+                    placeholder="Enter a custom prompt to guide the analysis. This will be added to the standard analysis instructions."
+                    rows="5"
+                    style="width: 100%; 
+                           min-height: 150px; 
+                           resize: vertical; 
+                           padding: 10px; 
+                           background-color: var(--primary-bg); 
+                           color: var(--text-color); 
+                           border: 1px solid rgba(255,255,255,0.2); 
+                           border-radius: var(--border-radius);"
+                ></textarea>
+                </div>
+
+                <button type="submit" class="btn">Analyze with AI</button>
+            </form>
+        </div>
+
+        <div class="content-area">
+            <div id="analysis-result"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const analysisForm = document.getElementById('analysis-form');
+            const dateRangeSelect = document.getElementById('date-range');
+            const customDateRangeDiv = document.getElementById('custom-date-range');
+            const analysisResult = document.getElementById('analysis-result');
+
+            // Show/hide custom date range based on selection
+            dateRangeSelect.addEventListener('change', function() {
+                customDateRangeDiv.style.display = 
+                    this.value === 'custom' ? 'flex' : 'none';
+            });
+
+            // Function to create and animate progress bar
+            function createProgressBar() {
+                const progressContainer = document.createElement('div');
+                progressContainer.className = 'progress-container';
+                const progressBar = document.createElement('div');
+                progressBar.className = 'progress-bar';
+                progressContainer.appendChild(progressBar);
+                
+                return { progressContainer, progressBar };
+            }
+
+            // Animate progress bar
+            function animateProgressBar(progressBar) {
+                let width = 0;
+                const interval = setInterval(() => {
+                    if (width >= 90) {
+                        clearInterval(interval);
+                    } else {
+                        width += Math.random() * 10 + 5;
+                        progressBar.style.width = `${Math.min(width, 90)}%`;
+                    }
+                }, 500);
+
+                return interval;
+            }
+
+            // Form submission handler
+            analysisForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                // Prepare request data
+                const formData = {
+                    analysis_type: document.getElementById('analysis-type').value,
+                    date_range: document.getElementById('date-range').value,
+                    category: document.getElementById('category').value,
+                    location: document.getElementById('location').value,
+                    custom_prompt: document.getElementById('custom-prompt').value.trim() 
+                };
+
+                // If custom date range is selected, modify date_range
+                if (formData.date_range === 'custom') {
+                    const startDate = document.getElementById('start-date').value;
+                    const endDate = document.getElementById('end-date').value;
+                    
+                    if (!startDate || !endDate) {
+                        alert('Please select both start and end dates for custom range');
+                        return;
+                    }
+
+                    formData.date_range = `custom:${startDate}:${endDate}`;
+                }
+
+                // Validate required fields
+                if (!formData.analysis_type) {
+                    alert('Please select an analysis type');
+                    return;
+                }
+
+                // Create loading state with progress bar
+                const { progressContainer, progressBar } = createProgressBar();
+                analysisResult.innerHTML = `
+                    <div class="loading">
+                        <div>AIRA is Analyzing Incidents...Please wait</div>
+                        <small>Gathering and processing data</small>
+                    </div>
+                `;
+                analysisResult.appendChild(progressContainer);
+
+                // Start progress bar animation
+                const progressInterval = animateProgressBar(progressBar);
+
+                // Send analysis request
+                fetch('/analyze-incidents', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Clear the progress interval
+                    clearInterval(progressInterval);
+
+                    if (data.success) {
+                        // Ensure progress bar reaches 100%
+                        progressBar.style.width = '100%';
+
+                        // Display analysis results
+                        const analysisHTML = `
+                            <div class="analysis-header">
+                                <h3>Analysis Results</h3>
+                                <button id="save-analysis" class="btn save-btn">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-download">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="7 10 12 15 17 10"></polyline>
+                                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                                    </svg>
+                                    Save Analysis
+                                </button>
+                            </div>
+                            <p><strong>Total Incidents Analyzed:</strong> ${data.total_incidents}</p>
+                            <pre id="analysis-content">${data.analysis}</pre>
+                        `;
+                        analysisResult.innerHTML = analysisHTML;
+
+                        // Add save functionality
+                        const saveButton = document.getElementById('save-analysis');
+                        const analysisContent = document.getElementById('analysis-content');
+                        
+                        saveButton.addEventListener('click', function() {
+                            // Prepare the content to save
+                            const analysisText = `AIRA Incident Analysis Report
+Total Incidents Analyzed: ${data.total_incidents}
+
+Analysis Details:
+${data.analysis}
+
+Generated on: ${new Date().toLocaleString()}`;
+
+                            // Create a Blob with the analysis text
+                            const blob = new Blob([analysisText], { type: 'text/plain' });
+                            
+                            // Create a download link
+                            const downloadLink = document.createElement('a');
+                            downloadLink.href = URL.createObjectURL(blob);
+                            downloadLink.download = `AIRA_Analysis_${new Date().toISOString().replace(/:/g, '-')}.txt`;
+                            
+                            // Trigger the download
+                            document.body.appendChild(downloadLink);
+                            downloadLink.click();
+                            document.body.removeChild(downloadLink);
+
+                            // Clean up the URL object
+                            URL.revokeObjectURL(downloadLink.href);
+                        });
+                    } else {
+                        // Display error
+                        analysisResult.innerHTML = `
+                            <div style="color: #ff4444;">
+                                <h3>Error</h3>
+                                <p>${data.error || 'An unknown error occurred'}</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    // Clear the progress interval
+                    clearInterval(progressInterval);
+
+                    console.error('Analysis Error:', error);
+                    analysisResult.innerHTML = `
+                        <div style="color: #ff4444;">
+                            <h3>Network Error</h3>
+                            <p>Unable to complete analysis. Please try again.</p>
+                        </div>
+                    `;
+                });
+            });
+        });
+    </script>
+</body>
+</html>

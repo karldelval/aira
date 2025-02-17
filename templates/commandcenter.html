@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incident Dashboard</title>
+    <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        .table-card {
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .table-card .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid rgba(0,0,0,0.125);
+        }
+        .table-hover tbody tr:hover {
+            background-color: rgba(0,0,0,0.02);
+        }
+        .incident-count {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #0d6efd;
+        }
+        .table-scroll {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .card-body {
+            padding: 1rem;
+        }
+        .table thead th {
+            position: sticky;
+            top: 0;
+            background-color: #fff;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body> {% include "chatbase.html" %}
+    {% include "header.html" %}
+    <div class="container">
+        <h1 class="my-4 text-center">Summary Dashboard</h1>
+        
+        <!-- Stats Section -->
+        <div class="row mb-4">
+            <!-- Daily Incidents -->
+            <div class="col-md-4 mb-3">
+                <div class="card table-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Today's Incidents</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-scroll">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Category</th>
+                                        <th>Location</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for incident in incidents_today %}
+                                    <tr>
+                                        <td>{{ incident.timestamp }}</td>
+                                        <td>{{ incident.report_text }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td><strong>Total</strong></td>
+                                        <td class="incident-count">{{ incidents_today|length }}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Weekly Incidents -->
+            <div class="col-md-4 mb-3">
+                <div class="card table-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Weekly Incidents</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-scroll">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Category</th>
+                                        <th>Location</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for incident in incidents_weekly %}
+                                    <tr>
+                                        <td>{{ incident.timestamp }}</td>
+                                        <td>{{ incident.report_text }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td><strong>Total</strong></td>
+                                        <td class="incident-count">{{ incidents_weekly|length }}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Monthly Incidents -->
+            <div class="col-md-4 mb-3">
+                <div class="card table-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Monthly Incidents</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-scroll">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Category</th>
+                                        <th>Location</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for incident in incidents_monthly %}
+                                    <tr>
+                                        <td>{{ incident.timestamp }}</td>
+                                        <td>{{ incident.report_text }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td><strong>Total</strong></td>
+                                        <td class="incident-count">{{ incidents_monthly|length }}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="row">
+            <!-- Top Categories -->
+            <div class="col-12 mb-5">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Top Categories</h5>
+                        <div id="category-chart" style="height: 400px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Incident Map -->
+            <div class="col-12 mb-5">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Incident Locations</h5>
+                        <div id="map-chart" style="height: 500px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Predictions -->
+            <div class="col-12 mb-5">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Incident Predictions</h5>
+                        <div id="prediction-chart" style="height: 400px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Wait for Plotly to load
+        window.addEventListener('load', function() {
+            if (typeof Plotly === 'undefined') {
+                console.error('Plotly library not loaded!');
+                document.querySelectorAll('[id$="-chart"]').forEach(element => {
+                    element.innerHTML = 'Error: Plotting library not loaded properly';
+                });
+                return;
+            }
+
+            console.log('Starting chart rendering...');
+            
+            try {
+                // Parse the figs data
+                const figs = {{ figs|tojson|safe }};
+                console.log('Figures data:', figs);
+
+                // Render category chart
+                if (figs.category) {
+                    console.log('Rendering category chart...');
+                    const categoryData = JSON.parse(figs.category);
+                    Plotly.newPlot('category-chart', categoryData.data, categoryData.layout);
+                } else {
+                    console.log('No category data available');
+                    document.getElementById('category-chart').innerHTML = 'No category data available';
+                }
+
+                // Render map
+                if (figs.map) {
+                    console.log('Rendering map...');
+                    const mapData = JSON.parse(figs.map);
+                    Plotly.newPlot('map-chart', mapData.data, mapData.layout);
+                } else {
+                    console.log('No map data available');
+                    document.getElementById('map-chart').innerHTML = 'No map data available';
+                }
+
+                // Render predictions
+                if (figs.prediction) {
+                    console.log('Rendering prediction chart...');
+                    const predictionData = JSON.parse(figs.prediction);
+                    Plotly.newPlot('prediction-chart', predictionData.data, predictionData.layout);
+                } else {
+                    console.log('No prediction data available');
+                    document.getElementById('prediction-chart').innerHTML = 'No prediction data available';
+                }
+
+            } catch (error) {
+                console.error('Error rendering charts:', error);
+                document.querySelectorAll('[id$="-chart"]').forEach(element => {
+                    element.innerHTML = 'Error rendering chart: ' + error.message;
+                });
+            }
+        });
+    </script>
+</body>
+</html>

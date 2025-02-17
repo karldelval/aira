@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Persons of Interest</title>
+    <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="{{ url_for('static', filename='js/scripts.js') }}" defer></script>
+    <style> table th {
+        background-color: #f8f9fa;
+        color: rgb(13, 13, 13);
+    }</style>
+</head>
+{% include "chatbase.html" %}
+{% include 'header.html' %}
+<body >
+   
+<br><br>
+    
+<div class="container">
+    <h2>Monitor Persons of Interest</h2>
+    <form action="/add_person" method="POST" enctype="multipart/form-data" class="mb-4">
+        <div class="mb-3">
+            <label for="name" class="form-label">Name</label>
+            <input type="text" class="form-control" id="name" name="name" required>
+        </div>
+        <div class="mb-3">
+            <label for="alias" class="form-label">Alias</label>
+            <input type="text" class="form-control" id="alias" name="alias">
+        </div>
+        <div class="mb-3">
+            <label for="description" class="form-label">Description</label>
+            <textarea class="form-control" id="description" name="description"></textarea>
+        </div>
+        <div class="mb-3">
+            <label for="last_seen_location" class="form-label">Last Seen Location</label>
+            <input type="text" class="form-control" id="last_seen_location" name="last_seen_location">
+        </div>
+        <div class="mb-3">
+            <label for="last_seen_date" class="form-label">Last Seen Date</label>
+            <input type="datetime-local" class="form-control" id="last_seen_date" name="last_seen_date">
+        </div>
+        <div class="mb-3">
+            <label for="notes" class="form-label">Notes</label>
+            <textarea class="form-control" id="notes" name="notes"></textarea>
+        </div>
+        <div class="mb-3">
+            <label for="photo" class="form-label">Upload Photo</label>
+            <input type="file" class="form-control" id="photo" name="photo">
+        </div>
+        <button type="submit" class="btn btn-primary">Add Person</button>
+    </form> </div>
+
+    
+    <div class="container"><h2>Current Persons of Interest</h2>
+    <table class="table" color="black">
+        <thead>
+            <tr>
+                <th>Photo</th>
+                <th>Name</th>
+                <th>Alias</th>
+                <th>Description</th>
+                <th>Last Seen Location</th>
+                <th>Last Seen Date</th>
+                <th>Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for person in persons %}
+            <tr>
+                <td>
+                    {% if person.photo_path %}
+                    <img src="{{ url_for('static', filename=person.photo_path.split('static/')[1]) }}" alt="Photo" style="width: 100px; height: 100px;">
+                    {% else %}
+                    No Photo
+                    {% endif %}
+                </td>
+                <td>{{ person.name }}</td>
+                <td>{{ person.alias }}</td>
+                <td>{{ person.description }}</td>
+                <td>{{ person.last_seen_location }}</td>
+                <td>{{ person.last_seen_date }}</td>
+                <td>{{ person.notes }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table> </div>
+</body>
+
+</html>
